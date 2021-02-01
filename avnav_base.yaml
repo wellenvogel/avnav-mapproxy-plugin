@@ -59,5 +59,3 @@ grids:
       #The google mercator srs is used (also called EPSG:900913), and the origin of the tiles is north-west). If you get this wrong, you might very well get an all-blue world.
       srs: 'EPSG:900913'
       origin: nw  
-
-base: [avnav_user.yaml]

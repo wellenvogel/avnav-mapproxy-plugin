@@ -1,0 +1,35 @@
+# nfpm example config file
+#
+# check https://nfpm.goreleaser.com/configuration for detailed usage
+#
+name: "avnav-mapproxy-plugin"
+arch: "all"
+platform: "linux"
+version: "20210201"
+keep_version: true
+section: "default"
+priority: "extra"
+depends:
+- avnav
+- python3-apt
+- python3-pydbus
+- ntpdate
+- sudo
+maintainer: "Andreas Vogel <andreas@wellenvogel.de>"
+description: |
+  AvNav plugin to handle online charts with mapproxy
+homepage: "https://example.com"
+license: "MIT"
+#scripts:
+#  postinstall: install/postinstall
+contents:
+- src: ./plugin.*
+  dst: /usr/lib/avnav/plugins/mapproxy/
+#- src: ./gui/*
+#  dst: /usr/lib/avnav/plugins/mapproxy/gui
+#- src: ./gui/icons/*
+#  dst: /usr/lib/avnav/plugins/mapproxy/gui/icons
+#- src: ./gui/lib/*
+#  dst: /usr/lib/avnav/plugins/mapproxy/gui/lib
+- src: ./avnav_*.yaml
+  dst: /usr/lib/avnav/plugins/mapproxy/

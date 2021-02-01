@@ -112,7 +112,7 @@ class Plugin:
     return self.api.getConfigValue(name)
 
   def createMapProxy(self):
-    configFile=os.path.join(self.dataDir,self.BASE_CONFIG)
+    configFile=os.path.join(self.dataDir,self.USER_CONFIG)
     self.api.setStatus('INACTIVE','creating mapproxy with config %s'%configFile)
     self.mapproxy = make_wsgi_app(configFile,ignore_config_warnings=False, reloader=True)
     self.api.log("created mapproxy wsgi app")
@@ -213,7 +213,8 @@ class Plugin:
       self.api.setStatus("ERROR","exception in startup: %s"%str(e))
       return
     self.api.log("started")
-    self.api.setStatus("NMEA","successfully started")
+    configFile = os.path.join(self.dataDir, self.USER_CONFIG)
+    self.api.setStatus("NMEA","successfully started with config file %s"%configFile)
     while True:
       try:
         self.getMaps()
