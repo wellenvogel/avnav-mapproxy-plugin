@@ -7,6 +7,7 @@ import urllib.parse
 from wsgiref.headers import Headers
 from simple_server import ServerHandler
 from mapproxy.wsgiapp import make_wsgi_app
+from xml.sax.saxutils import escape
 
 NAME="mapproxy"
 
@@ -35,7 +36,26 @@ class OwnWsgiHandler(ServerHandler):
 class Plugin:
   BASE_CONFIG='avnav_base.yaml'
   USER_CONFIG='avnav_user.yaml'
+  NAME_PREFIX='mp-'
   MPREFIX="mapproxy"
+  ICONFILE="logo.png"
+  AVNAV_XML = """<?xml version="1.0" encoding="UTF-8" ?>
+    <TileMapService version="1.0.0" >
+     <Title>%(title)s</Title>
+     <TileMaps>
+       <TileMap 
+         title="%(title)s" 
+         href="%(url)s"
+         minzoom="%(minzoom)s"
+         maxzoom="%(maxzoom)s"
+         projection="EPSG:4326">
+               <BoundingBox minlon="%(minlon)f" minlat="%(minlat)f" maxlon="%(maxlon)f" maxlat="%(maxlat)f" title="layer"/>
+         <TileFormat width="256" height="256" mime-type="x-%(format)s" extension="%(format)s" />
+      </TileMap>       
+     </TileMaps>
+   </TileMapService>
+
+    """
 
   @classmethod
   def pluginInfo(cls):
@@ -71,10 +91,9 @@ class Plugin:
         @type  api: AVNApi
     """
     self.api = api # type: AVNApi
-    #we register an handler for API requests
-    self.api.registerRequestHandler(self.handleApiRequest)
     self.dataDir=None
     self.mapproxy=None
+    self.sequence=0
 
 
 
@@ -90,6 +109,38 @@ class Plugin:
     self.api.setStatus('INACTIVE','creating mapproxy with config %s'%configFile)
     self.mapproxy = make_wsgi_app(configFile,ignore_config_warnings=False, reloader=True)
     self.api.log("created mapproxy wsgi app")
+
+  def getMaps(self):
+    rt=[]
+    if self.mapproxy is None or self.mapproxy.app is None:
+      self.api.debug("mapproxy not initialized in getMaps")
+      return rt
+    handlers=self.mapproxy.app.handlers
+    if handlers is None or handlers.get('tiles') is None:
+      self.api.debug("no tiles service in mapproxy in getMaps")
+      return rt
+    tiles=handlers['tiles']
+    chartBase=self.api.getBaseUrl()+"/api/mapproxy/tiles/1.0.0"
+    iconUrl=self.api.getBaseUrl()+"/"+self.ICONFILE
+    for k,v in tiles.layers.items():
+      #there should be some checks...
+      entry={
+        'name': self.NAME_PREFIX+k[0],
+        'url': chartBase+"/"+k[0]+"/"+k[1],
+        'icon': iconUrl,
+        'sequence':self.sequence
+      }
+      rt.append(entry)
+    return rt
+
+  def listCharts(self, hostip):
+    self.api.debug("listCharts %s" % hostip)
+    try:
+      return self.getMaps()
+    except:
+      self.api.debug("unable to list charts: %s" % traceback.format_exc())
+      return []
+
   def run(self):
     """
     the run method
@@ -121,6 +172,10 @@ class Plugin:
           self.api.log('creating config file %s from template %s',outname,src)
           shutil.copyfile(src,outname)
       self.createMapProxy()
+      # we register an handler for API requests
+      self.api.registerRequestHandler(self.handleApiRequest)
+      self.api.registerUserApp(self.api.getBaseUrl() + "/api/mapproxy/demo/", "logo.png")
+      self.api.registerChartProvider(self.listCharts)
     except Exception as e:
       self.api.error("error in startup: %s",traceback.format_exc())
       self.api.setStatus("ERROR","exception in startup: %s"%str(e))
@@ -197,6 +252,32 @@ class Plugin:
         'status':'OK',
       }
     if url.startswith(self.MPREFIX):
+      if url.endswith('/avnav.xml'):
+        #chartUrl=self.api.getBaseUrl()+"/api/"+url
+        chartUrl=''
+        parts=url.split("/")
+        param={
+          'title': escape(parts[-3]),
+          'url':chartUrl,
+          'minzoom': 6,
+          'maxzoom':18,
+          'format':'png',
+          'minlon':-180,
+          'maxlon':180,
+          'minlat':-85,
+          'maxlat':85
+        }
+        response=self.AVNAV_XML%param
+        response=response.encode('utf-8')
+        handler.send_response(200,"OK")
+        handler.send_header('Content-Type','text/xml')
+        handler.send_header('Content-Length',str(len(response)))
+        handler.send_header("Last-Modified", handler.date_time_string())
+        handler.end_headers()
+        handler.wfile.write(response)
+        return True
+      if url.endswith('sequence'):
+        return {'status':'OK','sequence':self.sequence}
       stderr=io.StringIO()
       try:
         shandler = OwnWsgiHandler(

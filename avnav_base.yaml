@@ -34,10 +34,10 @@ services:
 layers:
   base:
     title: OSM Geofabrik
-    sources: [c_geofabrik]
+    sources: [c_base]
 
 caches:
-  c_geofabrik:
+  c_base:
     grids: [webmercator]
     sources: [s_geofabrik]
     cache:
