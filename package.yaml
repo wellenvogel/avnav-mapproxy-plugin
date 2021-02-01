@@ -11,10 +11,7 @@ section: "default"
 priority: "extra"
 depends:
 - avnav
-- python3-apt
-- python3-pydbus
-- ntpdate
-- sudo
+- python3-mapproxy
 maintainer: "Andreas Vogel <andreas@wellenvogel.de>"
 description: |
   AvNav plugin to handle online charts with mapproxy
@@ -24,6 +21,8 @@ license: "MIT"
 #  postinstall: install/postinstall
 contents:
 - src: ./plugin.*
+  dst: /usr/lib/avnav/plugins/mapproxy/
+- src: ./*.png
   dst: /usr/lib/avnav/plugins/mapproxy/
 #- src: ./gui/*
 #  dst: /usr/lib/avnav/plugins/mapproxy/gui

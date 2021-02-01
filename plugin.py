@@ -5,7 +5,7 @@ import time
 import traceback
 import urllib.parse
 from wsgiref.headers import Headers
-from simple_server import ServerHandler
+from wsgiref.simple_server import ServerHandler
 from mapproxy.wsgiapp import make_wsgi_app
 from xml.sax.saxutils import escape
 
