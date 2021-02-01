@@ -1,0 +1,29 @@
+#mapproxy user config
+#just define your sources, layers and caches here
+
+layers:
+  - name: sverket
+    title: SVerket
+    sources: [c_sverket]
+
+caches:
+  c_sverket:
+    grids: [webmercator]
+    sources: [s_verket]
+    meta_size: [1,1]
+    cache:
+      type: mbtiles
+      filename: sverket.mbtiles    
+
+sources:
+  s_verket:
+    type: wms
+    req:
+      url: https://geokatalog.sjofartsverket.se/mapservice/wms.axd/FyrenBakgrund?STYLES=&
+      layers: OgcWmsLayer0
+      transparent: true
+    wms_opts:
+      version: 1.3.0
+    supported_srs: ['EPSG:3006']
+    supported_formats: [png]
+

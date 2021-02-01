@@ -1,0 +1,63 @@
+# -------------------------------
+# MapProxy example configuration.
+# -------------------------------
+#
+# This is a minimal MapProxy configuration.
+# See full_example.yaml and the documentation for more options.
+#
+
+# Starts the following services:
+# Demo:
+#     http://localhost:8080/demo
+# WMS:
+#     capabilities: http://localhost:8080/service?REQUEST=GetCapabilities
+# Tile service (compatible with OSM/etc.)
+#     first tile: http://localhost:8080/tiles/osm/webmercator/0/0/0.png
+# TMS:
+#     note: TMS is not compatible with OSM/Google Maps/etc.
+#     fist tile: http://localhost:8080/tms/1.0.0/osm/webmercator/0/0/0.png
+
+globals:
+  srs:
+     axis_order_ne: ['EPSG:3006']
+services:
+  demo:
+  tms:
+    use_grid_names: true
+    # origin for /tiles service
+    origin: 'nw'
+  wms:
+    md:
+      title: MapProxy WMS Proxy
+      abstract: This is a minimal MapProxy example.
+
+layers:
+  base:
+    title: OSM Geofabrik
+    sources: [c_geofabrik]
+
+caches:
+  c_geofabrik:
+    grids: [webmercator]
+    sources: [s_geofabrik]
+    cache:
+      type: mbtiles
+      filename: geofabrik.mbtiles
+
+sources:
+  s_geofabrik:
+    type: tile
+    grid: osm_grid
+    url:  https://b.tile.geofabrik.de/23228979966ae9040ceb0597251e12a2/%(z)s/%(x)s/%(y)s.png
+
+
+grids:
+    webmercator:
+        base: GLOBAL_WEBMERCATOR
+    osm_grid:
+      #this srs and origin specify a grid that can be used elsewhere in the configuration. In this example it is used for the osm_tiles source. These settings are correct for openstreetmap.org tiles.
+      #The google mercator srs is used (also called EPSG:900913), and the origin of the tiles is north-west). If you get this wrong, you might very well get an all-blue world.
+      srs: 'EPSG:900913'
+      origin: nw  
+
+base: [avnav_user.yaml]
