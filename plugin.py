@@ -75,6 +75,11 @@ class Plugin:
           'name': 'dataDir',
           'description': 'the directory to store the mapproxy config (defaults to DATADIR/mapproxy), you can use $DATADIR in the path',
           'default': None
+        },
+        {
+          'name': 'chartQueryPeriod',
+          'description': 'how often to query charts(s)',
+          'default': 5
         }
 
         ],
@@ -93,7 +98,9 @@ class Plugin:
     self.api = api # type: AVNApi
     self.dataDir=None
     self.mapproxy=None
-    self.sequence=0
+    self.sequence=time.time()
+    self.charts=[]
+    self.queryPeriod=5
 
 
 
@@ -120,26 +127,50 @@ class Plugin:
       self.api.debug("no tiles service in mapproxy in getMaps")
       return rt
     tiles=handlers['tiles']
-    chartBase=self.api.getBaseUrl()+"/api/mapproxy/tiles/1.0.0"
+    internalPath=self.MPREFIX+"/tiles/1.0.0"
+    chartBase=self.api.getBaseUrl()+"/api/"+internalPath
     iconUrl=self.api.getBaseUrl()+"/"+self.ICONFILE
     for k,v in tiles.layers.items():
-      #there should be some checks...
+      internals={'path':internalPath+"/"+k[0]+"/"+k[1]}
+      try:
+        #there should be some checks...
+        extent=v.extent
+        if extent is not None and extent.llbbox is not None:
+          internals['minlon']=extent.llbbox[0]
+          internals['minlat']=extent.llbbox[1]
+          internals['maxlon']=extent.llbbox[2]
+          internals['maxlat']=extent.llbbox[3]
+        if v.grid is not None and v.grid.tile_sets is not None:
+          zooms=[]
+          for ts in v.grid.tile_sets:
+            zooms.append(ts[0])
+          internals['minzoom']=min(zooms)
+          internals['maxzoom']=max(zooms)
+      except Exception as e:
+        self.api.debug("unable to fetch internals for layer: %s",str(e))
       entry={
         'name': self.NAME_PREFIX+k[0],
         'url': chartBase+"/"+k[0]+"/"+k[1],
         'icon': iconUrl,
-        'sequence':self.sequence
+        'sequence':self.sequence,
+        'internal':internals
       }
       rt.append(entry)
+    self.charts=rt
     return rt
 
   def listCharts(self, hostip):
     self.api.debug("listCharts %s" % hostip)
+    rt=[]
     try:
-      return self.getMaps()
+      for c in self.charts:
+        entry=c.copy()
+        del entry['internal']
+        rt.append(entry)
     except:
       self.api.debug("unable to list charts: %s" % traceback.format_exc())
       return []
+    return rt
 
   def run(self):
     """
@@ -176,15 +207,19 @@ class Plugin:
       self.api.registerRequestHandler(self.handleApiRequest)
       self.api.registerUserApp(self.api.getBaseUrl() + "/api/mapproxy/demo/", "logo.png")
       self.api.registerChartProvider(self.listCharts)
+      self.queryPeriod=int(self.getConfigValue('chartQueryPeriod'))
     except Exception as e:
       self.api.error("error in startup: %s",traceback.format_exc())
       self.api.setStatus("ERROR","exception in startup: %s"%str(e))
       return
-    seq=0
     self.api.log("started")
     self.api.setStatus("NMEA","successfully started")
     while True:
-      time.sleep(60)
+      try:
+        self.getMaps()
+      except Exception as e:
+        self.api.debug("error in main loop: %s",traceback.format_exc())
+      time.sleep(self.queryPeriod)
 
 
   def getWsgiEnv(self,handler):
@@ -234,6 +269,14 @@ class Plugin:
           env['HTTP_' + k] = v
       return env
 
+  def _findChartEntry(self,path):
+    for ce in self.charts:
+      internals=ce.get('internal')
+      if internals is None:
+        continue
+      if internals.get('path') == path:
+        return ce
+
 
   def handleApiRequest(self,url,handler,args):
     """
@@ -253,6 +296,8 @@ class Plugin:
       }
     if url.startswith(self.MPREFIX):
       if url.endswith('/avnav.xml'):
+        path=url.replace('/avnav.xml','')
+        chart=self._findChartEntry(path)
         #chartUrl=self.api.getBaseUrl()+"/api/"+url
         chartUrl=''
         parts=url.split("/")
@@ -267,6 +312,8 @@ class Plugin:
           'minlat':-85,
           'maxlat':85
         }
+        if chart:
+          param.update(chart['internal'])
         response=self.AVNAV_XML%param
         response=response.encode('utf-8')
         handler.send_response(200,"OK")
