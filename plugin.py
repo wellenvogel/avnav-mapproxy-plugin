@@ -6,6 +6,8 @@ import traceback
 import urllib.parse
 from wsgiref.headers import Headers
 from wsgiref.simple_server import ServerHandler
+
+import yaml
 from mapproxy.wsgiapp import make_wsgi_app
 from xml.sax.saxutils import escape
 
@@ -31,7 +33,19 @@ class OwnWsgiHandler(ServerHandler):
       return value
     return str(value)
 
-
+def merge_dict(conf, base):
+  """
+  Return `base` dict with values from `conf` merged in.
+  """
+  for k, v in conf.items():
+    if k not in base:
+      base[k] = v
+    else:
+      if isinstance(base[k], dict):
+        merge_dict(v, base[k])
+      else:
+        base[k] = v
+  return base
 
 class Plugin:
   BASE_CONFIG='avnav_base.yaml'
@@ -100,6 +114,7 @@ class Plugin:
     self.mapproxy=None
     self.sequence=time.time()
     self.charts=[]
+    self.layer2caches={}
     self.queryPeriod=5
 
 
@@ -117,6 +132,32 @@ class Plugin:
     self.mapproxy = make_wsgi_app(configFile,ignore_config_warnings=False, reloader=True)
     self.api.log("created mapproxy wsgi app")
 
+  def _readConfig(self,mainCfg,raiseError=False):
+    from mapproxy.config.loader import load_configuration_file
+    rt={}
+    if not os.path.exists(mainCfg):
+      return rt
+    dir=os.path.dirname(mainCfg)
+    fname=os.path.basename(mainCfg)
+    try:
+      rt=load_configuration_file([fname],dir)
+    except Exception as e:
+      self.api.debug("Error reading config from %s: %s",mainCfg,traceback.format_exc())
+      if raiseError:
+        raise
+    return rt
+
+  def _getLayers(self):
+    rt={}
+    for chart in self.charts:
+      name=chart.get('internal',{}).get('layer')
+      if name is None:
+        continue
+      rt[name]=chart.copy()
+      rt[name]['caches']=self.layer2caches.get(name,[])
+    return rt
+
+
   def getMaps(self):
     rt=[]
     if self.mapproxy is None or self.mapproxy.app is None:
@@ -131,7 +172,11 @@ class Plugin:
     chartBase=self.api.getBaseUrl()+"/api/"+internalPath
     iconUrl=self.api.getBaseUrl()+"/"+self.ICONFILE
     for k,v in tiles.layers.items():
-      internals={'path':internalPath+"/"+k[0]+"/"+k[1]}
+      internals={
+        'path':internalPath+"/"+k[0]+"/"+k[1],
+        'layer':k[0],
+        'grid': k[1]
+      }
       try:
         #there should be some checks...
         extent=v.extent
@@ -220,6 +265,32 @@ class Plugin:
         self.getMaps()
       except Exception as e:
         self.api.debug("error in main loop: %s",traceback.format_exc())
+      try:
+        config=self._readConfig(os.path.join(self.dataDir,self.USER_CONFIG))
+        layer2caches={}
+        layers=config.get('layers')
+        caches=config.get('caches')
+        if layers is not None and caches is not None:
+          layerlist=[]
+          if isinstance(layers,list):
+            layerlist=layers
+          else:
+            for k,v in layers.items():
+              v['name']=k
+            layerlist=list(layers.values())
+          for layer in layerlist:
+            name=layer.get('name')
+            sources=layer.get('sources',[])
+            if name is None:
+              continue
+            for s in sources:
+              if s in caches:
+                if layer2caches.get(name) is None:
+                  layer2caches[name]=[]
+                layer2caches[name].append(s)
+        self.layer2caches=layer2caches
+      except Exception as e:
+        self.api.debug("error in main loop reading config: %s",traceback.format_exc())
       time.sleep(self.queryPeriod)
 
 
@@ -291,9 +362,10 @@ class Plugin:
     if url == 'status':
       return {'status': 'OK',
               }
-    if url == 'charts':
+    if url == 'layers':
       return {
         'status':'OK',
+        'data': self._getLayers()
       }
     if url.startswith(self.MPREFIX):
       if url.endswith('/avnav.xml'):
