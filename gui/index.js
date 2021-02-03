@@ -1,5 +1,6 @@
 (function(){
     let map=undefined;
+    let drawnItems = undefined;
     const forEach = function (array, callback, scope) {
         for (let i = 0; i < array.length; i++) {
             callback.call(scope, i, array[i]); // passes back stuff we need
@@ -119,8 +120,80 @@
             return ;
         }
     }
+    let getTileFromLatLon=function(latLong,zoom){
+        let projected=map.project(latLong,zoom);
+        let ts=L.point(256,256);
+        let tcoord=projected.unscaleBy(ts).round();
+        tcoord.z=zoom;
+        return tcoord;
+    }
+    /**
+     * get the intersection of 2 rectangles
+     * @param first
+     * @param second
+     * returns undefined is no overlap
+     */
+    let getIntersectionBounds=function(first,second){
+        let fne=first.getNorthEast();
+        let fsw=first.getSouthWest();
+        let sne=second.getNorthEast()
+        let ssw=second.getSouthWest();
+        let ne=L.latLng(Math.min(fne.lat,sne.lat),Math.min(fne.lng,sne.lng))
+        let sw=L.latLng(Math.max(fsw.lat,ssw.lat),Math.max(fsw.lng,ssw.lng))
+        if (ne.lat > sw.lat && ne.lng > sw.lng) return L.latLngBounds(ne,sw);
+    }
+    let getBoundsFromSelections=function(toPlain){
+        if (! drawnItems) return [];
+        let rt=[];
+        drawnItems.getLayers().forEach(function(layer){
+            let bounds=layer.getBounds();
+            if (toPlain){
+                rt.push({
+                    ne: bounds.getNorthEast(),
+                    sw: bounds.getSouthWest()
+                 })
+            }
+            else {
+                rt.push(bounds);
+            }
+        })
+        return rt;
+    }
+    let tileCountForBounds=function(bounds,z){
+        let netile=getTileFromLatLon(bounds.getNorthEast(),z);
+        let swtile=getTileFromLatLon(bounds.getSouthWest(),z);
+        let xdiff=Math.abs(netile.x-swtile.x)+1;
+        let ydiff=Math.abs(netile.y-swtile.y)+1;
+        let zTiles=xdiff*ydiff;
+        return zTiles;
+    }
+    let saveSelections=function(){
+        let current=drawnItems;
+        let name="default";
+        let ne=document.getElementById('selectionName');
+        if (ne) name=ne.value;
+        let bounds=getBoundsFromSelections();
+        let numTiles=0;
+        let z=map.getZoom();
+        let alreadyCounted=[];
+        bounds.forEach(function(bound){
+            let maxTiles=tileCountForBounds(bound,z);
+            //subtract intersections
+            alreadyCounted.forEach(function(other){
+                let intersect=getIntersectionBounds(bound,other);
+                if (intersect){
+                    let intersectNum=tileCountForBounds(intersect,z);
+                    maxTiles-=intersectNum;
+                    if (maxTiles < 0) maxTiles=0; //hmmm
+                }
+            })
+            numTiles+=maxTiles;
+            alreadyCounted.push(bound);
+        })
+        alert("saving to "+name+", "+numTiles+" tiles on current zoom "+z);
+    }
     let buttonActions={
-        test:function(){alert("test")}
+        save:saveSelections
     }
     let selectTab=function(id){
         forEach(document.querySelectorAll('.tab'),function(i,tab){
@@ -154,7 +227,7 @@
             });
         forEach(document.querySelectorAll('.tabSelect .selector'),
             function (i,sel){
-                self.addEventListener('click',function(ev){
+                sel.addEventListener('click',function(ev){
                     ev.preventDefault();
                     let id=ev.target.getAttribute('data-tabid');
                     if (id) selectTab(id);
@@ -167,6 +240,9 @@
         });
         flask.onUpdate(function(){codeChanged(true)});
         let networkState=document.getElementById('networkStatus');
+        let selName=document.getElementById('selectionName');
+        let d=new Date()
+        if (selName) selName.value="selection-"+d.getFullYear()+"-"+d.getMonth()+"-"+d.getDate();
         let first=true;
         this.window.setInterval(function(){
             let url='status';
@@ -197,11 +273,8 @@
             })
         },1000);
         map=L.map('map').setView([54,13],6);
-        let drawnItems = new L.FeatureGroup();
+        drawnItems=new L.FeatureGroup();
         map.addLayer(drawnItems);
-
-        // Set the title to show on the polygon button
-        L.drawLocal.draw.toolbar.buttons.polygon = 'Draw a sexy polygon!';
 
         let drawControl = new L.Control.Draw({
             position: 'topright',
@@ -227,6 +300,7 @@
             let layer = e.layer;
             drawnItems.addLayer(layer);
         });
+        let layers={};
         apiRequest('layers')
             .then(function(resp){
                 if (resp && resp.data && resp.data.base){
@@ -236,6 +310,44 @@
                     let layer = L.tileLayer(url+'/{z}/{x}/{y}.png',{
                         });
                     layer.addTo(map);
+                }
+                if (resp && resp.data){
+                    let layerList=document.getElementById('layerFrame');
+                    if (layerList){
+                        layerList.innerText='';
+                        let first=true;
+                        for (let lname in resp.data) {
+                            if (lname === 'base') continue;
+                            let lconfig = resp.data[lname];
+                            let item = document.createElement('div');
+                            item.classList.add('layerSelect');
+                            let rb = document.createElement('input');
+                            rb.setAttribute('type', 'radio');
+                            rb.setAttribute('name', 'layer');
+                            if (first) rb.checked = true;
+                            let layer=L.tileLayer(lconfig.url+'/{z}/{x}/{y}.png');
+                            layers[lname]=layer;
+                            if (first) map.addLayer(layer);
+                            rb.setAttribute('value',lname);
+                            rb.addEventListener('change',function(){
+                                forEach(layerList.querySelectorAll('input[type="radio"]'),
+                                    function(idx,el){
+                                    let layer=layers[el.getAttribute('value')];
+                                    if (layer) {
+                                        if (el.checked) map.addLayer(layer);
+                                        else map.removeLayer(layer);
+                                    }
+                                    })
+                                map.invalidateSize();
+                            });
+                            first=false;
+                            item.appendChild(rb);
+                            let label = document.createElement('span');
+                            label.innerText = lconfig.name;
+                            item.appendChild(label);
+                            layerList.appendChild(item);
+                        }
+                    }
                 }
             })
             .catch(function(error){

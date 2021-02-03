@@ -98,6 +98,22 @@ iframe.demoFrame {
     flex-direction: column;
 }
 
+.layerSelect {
+    margin: 0.5em;
+}
+.layerFrame {
+    display: flex;
+    flex-direction: column;
+}
+.selectionName {
+    margin-bottom: 1em;
+}
+.selectionName input {
+    border: 1px solid lightgray;
+    padding: 0.3em;
+    font-size: 1em;
+}
+
 .buttonFrame {
     display: flex;
     flex-direction: column;
@@ -222,6 +238,9 @@ button {
     }
     #downloadtab{
         flex-direction: column;
+    }
+    .layerFrame {
+        flex-direction: row;
     }
 
 }
