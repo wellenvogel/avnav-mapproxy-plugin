@@ -1,4 +1,5 @@
 (function(){
+    let map=undefined;
     const forEach = function (array, callback, scope) {
         for (let i = 0; i < array.length; i++) {
             callback.call(scope, i, array[i]); // passes back stuff we need
@@ -136,6 +137,7 @@
         forEach(document.querySelectorAll('#'+id),function(i,tab){
             tab.classList.add('active');
         })
+        map.invalidateSize();
     }
     window.addEventListener('load',function(){
         let title=document.getElementById('title');
@@ -194,6 +196,51 @@
                 console.log(error);
             })
         },1000);
+        map=L.map('map').setView([54,13],6);
+        let drawnItems = new L.FeatureGroup();
+        map.addLayer(drawnItems);
+
+        // Set the title to show on the polygon button
+        L.drawLocal.draw.toolbar.buttons.polygon = 'Draw a sexy polygon!';
+
+        let drawControl = new L.Control.Draw({
+            position: 'topright',
+            draw: {
+                polyline: false,
+                polygon: false,
+                circle: false,
+                circlemarker: false,
+                marker: false,
+                rectangle: {
+                    shapeOptions: {
+                        clickable: true
+                    }
+                }
+            },
+            edit: {
+                featureGroup: drawnItems,
+                remove: true
+            }
+        });
+        map.addControl(drawControl);
+        map.on(L.Draw.Event.CREATED, function (e) {
+            let layer = e.layer;
+            drawnItems.addLayer(layer);
+        });
+        apiRequest('layers')
+            .then(function(resp){
+                if (resp && resp.data && resp.data.base){
+                    let cfg=resp.data.base;
+                    let name=cfg.name;
+                    let url=cfg.url;
+                    let layer = L.tileLayer(url+'/{z}/{x}/{y}.png',{
+                        });
+                    layer.addTo(map);
+                }
+            })
+            .catch(function(error){
+                showError(error);
+            })
         selectTab('statustab');
     })
 })();

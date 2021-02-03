@@ -74,6 +74,7 @@ text {
     color: white;
     background-color: rgba(84, 110, 122, 0.4);
     padding: 0.8em;
+    border-right: 1px solid black;
 }
 .tabSelect .selector.active{
     background-color: rgba(84, 110, 122, 0.7);
