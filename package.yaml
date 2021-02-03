@@ -24,11 +24,15 @@ contents:
   dst: /usr/lib/avnav/plugins/mapproxy/
 - src: ./*.png
   dst: /usr/lib/avnav/plugins/mapproxy/
-#- src: ./gui/*
-#  dst: /usr/lib/avnav/plugins/mapproxy/gui
+- src: ./gui/*
+  dst: /usr/lib/avnav/plugins/mapproxy/gui
 #- src: ./gui/icons/*
 #  dst: /usr/lib/avnav/plugins/mapproxy/gui/icons
-#- src: ./gui/lib/*
-#  dst: /usr/lib/avnav/plugins/mapproxy/gui/lib
+- src: ./gui/lib/*
+  dst: /usr/lib/avnav/plugins/mapproxy/gui/lib
+- src: ./gui/lib/images/*
+  dst: /usr/lib/avnav/plugins/mapproxy/gui/lib/images
+- src: ./build/boxes/*
+  dst: /usr/lib/avnav/plugins/mapproxy/boxes
 - src: ./avnav_*.yaml
   dst: /usr/lib/avnav/plugins/mapproxy/
