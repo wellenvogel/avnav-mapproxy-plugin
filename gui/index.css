@@ -1,0 +1,226 @@
+
+*{
+    box-sizing: border-box;
+}
+html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    font-family: Verdana, Arial, sans-serif;
+}
+html{
+    overflow: hidden;
+}
+body{
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+}
+text {
+    font-family: Verdana, Arial, sans-serif;
+}
+
+.blink {
+    animation: blinker 1.7s cubic-bezier(.5, 0, 1, 1) infinite alternate;  
+  }
+@keyframes blinker { to { opacity: 0; } }
+
+.unknown {
+    background-image: radial-gradient(rgba(128, 128, 128,1), rgba(128, 128, 128, 0.6),transparent);
+}
+.ok{
+    background-image: radial-gradient(rgba(10, 240, 10,1), rgba(10, 240, 10, 0.6),transparent);    
+}
+.error{
+    background-image: radial-gradient(rgba(240, 10, 10,1), rgba(240, 10, 10, 0.6),transparent);
+}
+.title {
+    height: 4em;
+    background-color: rgb(84, 110, 122);
+    color: white;
+    font-weight: bold;
+    flex-shrink: 0;
+    padding: 1em;
+}
+#root {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+    height: 100%;
+    padding: 1em;
+}
+
+.tab{
+    display: none;
+}
+.tab.active{
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+#downloadtab{
+    flex-direction: row;
+}
+
+.tabSelect {
+    display: flex;
+    flex-direction: row;
+}
+.tabSelect .selector {
+    flex: 1;
+    text-align: center;
+    line-height: 2em;
+    color: white;
+    background-color: rgba(84, 110, 122, 0.4);
+    padding: 0.8em;
+}
+.tabSelect .selector.active{
+    background-color: rgba(84, 110, 122, 0.7);
+}
+
+iframe.demoFrame {
+    height: 100%;
+    margin: 0;
+    width: 100%;
+}
+
+.infoFrame {
+    flex: 1;
+    border-collapse: collapse;
+    margin: 1em;
+    border: 1px solid grey;
+}
+
+.statusFrame {
+    display: flex;
+    flex-direction: column;
+}
+
+.buttonFrame {
+    display: flex;
+    flex-direction: column;
+}
+
+
+button {
+    width: 8em;
+    margin: 0.3em;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    height: 3em;
+    border-width: 1px;
+    border-radius: 0.2em;
+    border-color: #80808047;
+}
+
+
+
+.state {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    border-bottom: 1px solid grey;
+    margin-bottom: 0.5em;
+    padding-bottom: 0.5em;
+
+}
+
+.label {
+    display: block;
+    margin: 0.3em;
+    font-size: 0.8em;
+    opacity: 0.6;
+}
+.state .label {
+    width: 10em;
+}
+
+
+.statusText{
+    margin: 0.3em;
+    height: 1em;
+    display: block;
+    width: 1em;
+    border-radius: 50%;
+}
+
+.statusText[data-status="3"] {
+    color:#08080891;
+}
+.statusText[data-status="2"] {
+    color:red;
+}
+.statusText[data-status="1"] {
+    color:green;
+}
+
+.mapframe {
+    flex: 1;
+}
+.map{
+    width: 100%;
+    height: 100%;
+}
+
+.overlayFrame{
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 10;
+    background-color: #00000073;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    visibility: hidden;
+}
+
+.overlay {
+    display: flex;
+    flex-direction: column;
+    max-width: 50em;
+    width: 90%;
+    max-height: 90%;
+    background-color: white;
+    flex: 1;
+}
+
+#editOverlay .overlay{
+    max-width: unset;
+}
+
+.overlayContent {
+    flex: 1;
+    border-bottom: 1px solid grey;
+    padding: 0.5em;
+    overflow-y: auto;
+    overflow-x: hidden;
+    word-break: break-all;
+    white-space: pre-line;
+    position: relative;
+}
+
+
+.overlayButtons {
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-end;
+}
+
+@media (max-width: 1000px) {
+    #root{
+        flex-direction: column;
+    }
+    .rightFrame{
+        align-items: stretch;
+        margin: 0;
+    }
+    #downloadtab{
+        flex-direction: column;
+    }
+
+}

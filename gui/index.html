@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="AvNavUpdate">
+    <link rel="stylesheet" href="index.css">
+    <link rel="stylesheet" href="lib/codeflask.css">
+    <script type="text/javascript" src="index.js"></script>
+    <script type="text/javascript" src="lib/codeflask.min.js"></script>
+    <script type="text/javascript" src="../api/mapproxy/demo/static/OpenLayers.js"></script>
+
+    <title>AvNavMapproxy</title>
+</head>
+<body>
+<noscript>
+    Diese Seite funktioniert nur mit java script.
+</noscript>
+<div class="title" id="title">AvNav Mapproxy</div>
+<div class="tabSelect">
+    <div class="selector" data-tabid="statustab">Status</div>
+    <div class="selector" data-tabid="demotab">Demo</div>
+    <div class="selector" data-tabid="downloadtab">Download</div>
+</div>
+<div id="root">
+    <div class="tab" id="statustab">
+        <div class="statusFrame">
+            <div class="networkState state">
+                <span class="label">Internet</span>
+                <span id="networkStatus" class="statusText unknown"></span>
+            </div>
+            <div class="downloadState state">
+                <span class="label">Download</span>
+                <span id="downloadStatus" class="statusText unknown"></span>
+            </div>
+        </div>
+    </div>
+    <div class="tab" id="demotab">
+        <iframe class="demoFrame" src="../api/mapproxy/demo/"></iframe>
+    </div>
+    <div class="tab" id="downloadtab">
+        <div class="mapframe">
+            <div class="map" id="map">
+
+            </div>
+        </div>
+        <div class="buttonFrame">
+            <button id="test">Test</button>
+        </div>
+    </div>
+</div>
+<div class="overlayFrame" id="editOverlay">
+    <div class="overlay">
+        <div class="overlayContent">
+
+        </div>
+        <div class="overlayButtons">
+            <button id="downloadEditOverlay">Download</button>
+            <button id="closeEditOverlay">Cancel</button>
+            <button id="saveEditOverlay">Save</button>
+        </div>
+    </div>
+</div>
+</body>
+</html>
+
