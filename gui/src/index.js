@@ -141,7 +141,11 @@ import {buttonEnable, showHideOverlay} from "./util";
             numTiles+=maxTiles;
             alreadyCounted.push(bound);
         })
-        alert("saving to "+name+", "+numTiles+" tiles on current zoom "+z);
+        apiRequest("saveBoxes?data="+encodeURIComponent(JSON.stringify(bounds)))
+        .then((res)=>{
+                alert("saved to "+name+", "+numTiles+" tiles on current zoom "+z);
+        })
+        .catch((e)=>showError(e));
     }
     let buttonActions={
         save:saveSelections

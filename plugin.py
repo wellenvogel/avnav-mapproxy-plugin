@@ -1,6 +1,30 @@
+###############################################################################
+# Copyright (c) 2021, Andreas Vogel andreas@wellenvogel.net
+#
+#  Permission is hereby granted, free of charge, to any person obtaining a
+#  copy of this software and associated documentation files (the "Software"),
+#  to deal in the Software without restriction, including without limitation
+#  the rights to use, copy, modify, merge, publish, distribute, sublicense,
+#  and/or sell copies of the Software, and to permit persons to whom the
+#  Software is furnished to do so, subject to the following conditions:
+#
+#  The above copyright notice and this permission notice shall be included
+#  in all copies or substantial portions of the Software.
+#
+#  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+#  OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+#  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+#  THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+#  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+#  FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+#  DEALINGS IN THE SOFTWARE.
+###############################################################################
+import importlib.util
 import io
+import json
 import os
 import shutil
+import sys
 import time
 import traceback
 import urllib.parse
@@ -10,6 +34,20 @@ from wsgiref.simple_server import ServerHandler
 import yaml
 from mapproxy.wsgiapp import make_wsgi_app
 from xml.sax.saxutils import escape
+
+
+def loadModuleFromFile(fileName):
+  if not os.path.isabs(fileName):
+    fileName=os.path.join(os.path.dirname(__file__),fileName)
+  moduleName=os.path.splitext(os.path.basename(fileName))[0]
+  # see https://docs.python.org/3/library/importlib.html#module-importlib
+  spec = importlib.util.spec_from_file_location(moduleName, fileName)
+  module = importlib.util.module_from_spec(spec)
+  spec.loader.exec_module(module)
+  sys.modules[moduleName] = module
+  return module
+
+seedCreator=loadModuleFromFile('create_seed.py')
 
 NAME="mapproxy"
 
@@ -367,6 +405,16 @@ class Plugin:
         'status':'OK',
         'data': self._getLayers()
       }
+    if url == 'saveBoxes':
+      data=args.get('data')
+      if data is None or len(data) != 1:
+        return {'status':'missing or invalid parameter data'}
+      outname=os.path.join(self.dataDir,'boxes.yaml')
+      decoded=json.loads(data[0])
+      with open(outname,"w") as oh:
+        yaml.dump(decoded,oh)
+      return {'status':'OK'}
+
     if url.startswith(self.MPREFIX):
       if url.endswith('/avnav.xml'):
         path=url.replace('/avnav.xml','')
