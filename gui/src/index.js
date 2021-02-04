@@ -1,4 +1,10 @@
+import '../style/index.css';
+import 'leaflet/dist/leaflet.css';
+import 'leaflet-draw/dist/leaflet.draw.css';
+import L from 'leaflet';
+import 'leaflet-draw';
 (function(){
+    let base=window.location.href.replace(/mapproxy\/gui.*/,'mapproxy');
     let map=undefined;
     let drawnItems = undefined;
     const forEach = function (array, callback, scope) {
@@ -8,7 +14,7 @@
     };
     let flask;
     let apiRequest=function(command){
-        let url="../api/"+command;
+        let url=base+"/api/"+command;
         return new Promise(function(resolve,reject){
             fetch(url)
             .then(function(r){
@@ -72,7 +78,7 @@
     }
     let showEdit=function(){
         showHideOverlay('editOverlay',true);
-        fetch('../api/getConfig')
+        fetch(base+'/api/getConfig')
         .then(function(resp){
             return resp.text();
         })
@@ -96,7 +102,7 @@
             return;
         }
         if (confirm("Really overwrite AvNav config and restart AvNav?")){
-            fetch('../api/uploadConfig',{
+            fetch(base+'/api/uploadConfig',{
                 method: 'POST',
                 headers:{
                     'Content-Type':'text/plain'
@@ -216,6 +222,10 @@
         let title=document.getElementById('title');
         if (window.location.search.match(/title=no/)){
             if (title) title.style.display="none";
+        }
+        let demo=document.getElementById('demoFrame');
+        if (demo) {
+            demo.setAttribute('src',base+"/api/mapproxy/demo/");
         }
         forEach(document.querySelectorAll('button'),
             function(i,bt) {

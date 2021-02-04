@@ -11,7 +11,8 @@ module.exports = {
   plugins: [
     new CopyPlugin({
       patterns: [
-        { from: path.resolve(__dirname,"static")}
+            { from: path.resolve(__dirname,"static")},
+            { from: path.resolve(__dirname,"lib")+"/codeflask*"}
       ],
     }),
     new MiniCssExtractPlugin({
@@ -33,6 +34,14 @@ module.exports = {
           {
             test: /\.css$|\.less$/,
             use:[MiniCssExtractPlugin.loader,'css-loader','less-loader']
+          },
+          {
+              test: /\.(ttf|eot|svg|png|jpg|gif|ico)(\?v=[0-9]\.[0-9]\.[0-9])?$/,
+              loader: 'file-loader',
+              options:{
+                  outputPath: 'lib',
+                  publicPath: 'lib'
+              }
           }
       ]
   },
