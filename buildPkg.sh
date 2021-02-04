@@ -12,10 +12,19 @@ buildDir="$pdir/build/boxes"
 #set -x
 config=package.yaml
 force=0
-if [ "$1" = "-f" ] ; then
-  force=1
-  shift
-fi  
+incremental=0
+while getopts fi opt
+do
+  case "$opt" in
+    f) force=1
+      ;;
+    i) incremental=1
+      ;;
+    ?) err invalid option $opt
+      ;;  
+  esac      
+done
+shift $((OPTIND-1))
 version="$1"
 if [ "$version" = "" ] ; then
   version=`date '+%Y%m%d'`
@@ -33,6 +42,11 @@ do
     curl -o "$bf" -f "$url" || err unable to download "$url"
   fi
 done
+if [ $incremental != 1 ];then
+  echo npm install
+  ( cd gui && npm install ) || err error in npm install
+fi
+(cd gui && npm run production ) || err building gui
 echo building version $version
 tmpf=package$$.yaml
 rm -f $tmpf

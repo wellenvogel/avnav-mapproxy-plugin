@@ -1,8 +1,33 @@
+/*
+###############################################################################
+# Copyright (c) 2021, Andreas Vogel andreas@wellenvogel.net
+#
+#  Permission is hereby granted, free of charge, to any person obtaining a
+#  copy of this software and associated documentation files (the "Software"),
+#  to deal in the Software without restriction, including without limitation
+#  the rights to use, copy, modify, merge, publish, distribute, sublicense,
+#  and/or sell copies of the Software, and to permit persons to whom the
+#  Software is furnished to do so, subject to the following conditions:
+#
+#  The above copyright notice and this permission notice shall be included
+#  in all copies or substantial portions of the Software.
+#
+#  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+#  OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+#  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+#  THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+#  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+#  FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+#  DEALINGS IN THE SOFTWARE.
+###############################################################################
+*/
 import '../style/index.css';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-draw/dist/leaflet.draw.css';
 import L from 'leaflet';
 import 'leaflet-draw';
+import {getBoundsFromSelections, getIntersectionBounds, tileCountForBounds} from "./map";
+import {buttonEnable, showHideOverlay} from "./util";
 (function(){
     let base=window.location.href.replace(/mapproxy\/gui.*/,'mapproxy');
     let map=undefined;
@@ -34,39 +59,7 @@ import 'leaflet-draw';
         });
     }
 
-    let showHideOverlay=function(id,show){
-        let ovl=id;
-        if (typeof(id) === 'string'){
-            ovl=document.getElementById(id);
-        }
-        if (!ovl) return;
-        ovl.style.visibility=show?'unset':'hidden';
-        return ovl;
-    }
-    let closeOverlayFromButton=function(btEvent){
-        let target=btEvent.target;
-        while (target && target.parentElement){
-            target=target.parentElement;
-            if (target.classList.contains('overlayFrame')){
-                showHideOverlay(target,false);
-                return;
-            }
-        }
-    }
-    let buttonEnable=function(id,enable){
-        let bt=id;
-        if (typeof(id) === 'string'){
-            bt=document.getElementById(id);
-        }
-        if (! bt) return;
-        if (enable){
-            bt.removeAttribute('disabled');
-        }
-        else{
-            bt.setAttribute('disabled','');
-        }
 
-    }
 
     let ignoreNextChanged=false;
     let codeChanged=function(changed){
@@ -101,7 +94,7 @@ import 'leaflet-draw';
             showError("internal error: "+e);
             return;
         }
-        if (confirm("Really overwrite AvNav config and restart AvNav?")){
+        if (confirm("Really overwrite config")){
             fetch(base+'/api/uploadConfig',{
                 method: 'POST',
                 headers:{
@@ -118,7 +111,6 @@ import 'leaflet-draw';
                     return;
                 }
                 showHideOverlay('editOverlay',false);
-                startAction('restart');
             })
             .catch(function(error){
                 showError(error);
@@ -126,64 +118,17 @@ import 'leaflet-draw';
             return ;
         }
     }
-    let getTileFromLatLon=function(latLong,zoom){
-        let projected=map.project(latLong,zoom);
-        let ts=L.point(256,256);
-        let tcoord=projected.unscaleBy(ts).round();
-        tcoord.z=zoom;
-        return tcoord;
-    }
-    /**
-     * get the intersection of 2 rectangles
-     * @param first
-     * @param second
-     * returns undefined is no overlap
-     */
-    let getIntersectionBounds=function(first,second){
-        let fne=first.getNorthEast();
-        let fsw=first.getSouthWest();
-        let sne=second.getNorthEast()
-        let ssw=second.getSouthWest();
-        let ne=L.latLng(Math.min(fne.lat,sne.lat),Math.min(fne.lng,sne.lng))
-        let sw=L.latLng(Math.max(fsw.lat,ssw.lat),Math.max(fsw.lng,ssw.lng))
-        if (ne.lat > sw.lat && ne.lng > sw.lng) return L.latLngBounds(ne,sw);
-    }
-    let getBoundsFromSelections=function(toPlain){
-        if (! drawnItems) return [];
-        let rt=[];
-        drawnItems.getLayers().forEach(function(layer){
-            let bounds=layer.getBounds();
-            if (toPlain){
-                rt.push({
-                    ne: bounds.getNorthEast(),
-                    sw: bounds.getSouthWest()
-                 })
-            }
-            else {
-                rt.push(bounds);
-            }
-        })
-        return rt;
-    }
-    let tileCountForBounds=function(bounds,z){
-        let netile=getTileFromLatLon(bounds.getNorthEast(),z);
-        let swtile=getTileFromLatLon(bounds.getSouthWest(),z);
-        let xdiff=Math.abs(netile.x-swtile.x)+1;
-        let ydiff=Math.abs(netile.y-swtile.y)+1;
-        let zTiles=xdiff*ydiff;
-        return zTiles;
-    }
+
     let saveSelections=function(){
-        let current=drawnItems;
         let name="default";
         let ne=document.getElementById('selectionName');
         if (ne) name=ne.value;
-        let bounds=getBoundsFromSelections();
+        let bounds=getBoundsFromSelections(drawnItems);
         let numTiles=0;
         let z=map.getZoom();
         let alreadyCounted=[];
         bounds.forEach(function(bound){
-            let maxTiles=tileCountForBounds(bound,z);
+            let maxTiles=tileCountForBounds(map,bound,z);
             //subtract intersections
             alreadyCounted.forEach(function(other){
                 let intersect=getIntersectionBounds(bound,other);
