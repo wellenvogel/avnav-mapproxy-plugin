@@ -1,0 +1,35 @@
+{
+  "name": "react-starter",
+  "version": "1.0.0",
+  "description": "react starter",
+  "main": "index.js",
+  "homepage": "https://xxx",
+  "scripts": {
+    "server": "webpack serve --config ./webpack.debug.js --mode development",
+    "watch": "webpack --config ./webpack.debug.js --watch --progress",
+    "debug": "webpack --config ./webpack.debug.js --progress",
+    "production": "webpack --config ./webpack.production.js --progress",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": {
+    "name": "Andreas Vogel(wellenvogel)",
+    "email": "andreas@wellenvogel.net"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@babel/core": "^7.12.10",
+    "@babel/preset-env": "^7.12.10",
+    "babel-loader": "^8.2.2",
+    "copy-webpack-plugin": "^7.0.0",
+    "css-loader": "^5.0.1",
+    "less": "^3.13.0",
+    "less-loader": "^7.1.0",
+    "mini-css-extract-plugin": "^1.3.3",
+    "style-loader": "^2.0.0",
+    "webpack": "^5.10.1",
+    "webpack-cli": "^4.2.0",
+    "webpack-dev-server": "^3.11.0",
+    "webpack-merge": "^5.7.0"
+  }
+}
