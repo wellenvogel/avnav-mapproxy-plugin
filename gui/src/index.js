@@ -21,22 +21,18 @@
 #  DEALINGS IN THE SOFTWARE.
 ###############################################################################
 */
-import '../style/index.css';
+import '../style/index.less';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-draw/dist/leaflet.draw.css';
 import L from 'leaflet';
 import 'leaflet-draw';
 import {getBoundsFromSelections, getIntersectionBounds, tileCountForBounds} from "./map";
-import {buttonEnable, showHideOverlay} from "./util";
+import {buttonEnable, safeName, showHideOverlay, forEach, setCloseOverlayActions} from "./util";
 (function(){
+    let selectedLayer=undefined;
     let base=window.location.href.replace(/mapproxy\/gui.*/,'mapproxy');
     let map=undefined;
     let drawnItems = undefined;
-    const forEach = function (array, callback, scope) {
-        for (let i = 0; i < array.length; i++) {
-            callback.call(scope, i, array[i]); // passes back stuff we need
-        }
-    };
     let flask;
     let apiRequest=function(command){
         let url=base+"/api/"+command;
@@ -119,7 +115,7 @@ import {buttonEnable, showHideOverlay} from "./util";
         }
     }
 
-    let saveSelections=function(){
+    let saveSelections=function(seedFor){
         let name="default";
         let ne=document.getElementById('selectionName');
         if (ne) name=ne.value;
@@ -127,13 +123,14 @@ import {buttonEnable, showHideOverlay} from "./util";
         let numTiles=0;
         let z=map.getZoom();
         let alreadyCounted=[];
+        //tile counting - only for mode current zoom
         bounds.forEach(function(bound){
             let maxTiles=tileCountForBounds(map,bound,z);
             //subtract intersections
             alreadyCounted.forEach(function(other){
                 let intersect=getIntersectionBounds(bound,other);
                 if (intersect){
-                    let intersectNum=tileCountForBounds(intersect,z);
+                    let intersectNum=tileCountForBounds(map,intersect,z);
                     maxTiles-=intersectNum;
                     if (maxTiles < 0) maxTiles=0; //hmmm
                 }
@@ -141,14 +138,92 @@ import {buttonEnable, showHideOverlay} from "./util";
             numTiles+=maxTiles;
             alreadyCounted.push(bound);
         })
-        apiRequest("saveBoxes?data="+encodeURIComponent(JSON.stringify(bounds)))
+        name=safeName(name);
+        let url="saveSelection?data="+
+            encodeURIComponent(JSON.stringify(bounds))+
+            "&name="+encodeURIComponent(name);
+        if (seedFor){
+            url+="&startSeed="+encodeURIComponent(selectedLayer);
+        }
+        apiRequest(url
+        )
         .then((res)=>{
-                alert("saved to "+name+", "+numTiles+" tiles on current zoom "+z);
+            if (res.numTiles !== undefined){
+                alert("seed started with "+res.numTiles+" tiles");
+            }
         })
         .catch((e)=>showError(e));
     }
+    let startSeed=()=>{
+        saveSelections(true);
+    }
+    let showSelection=(name)=>{
+        apiRequest('loadSelection?name='+encodeURIComponent(name))
+            .then((data)=>{
+                let ne=document.getElementById('selectionName');
+                if (ne) ne.value=name;
+                drawnItems.clearLayers();
+                for (let i in data.data){
+                    let box=data.data[i];
+                    let rect=L.rectangle([L.latLng(box._southWest),L.latLng(box._northEast)]);
+                    drawnItems.addLayer(rect);
+                }
+                updateTileCount();
+            })
+            .catch((e)=>showError(e));
+    };
+    let loadSelection=()=>{
+        apiRequest('listSelections')
+            .then((data)=>{
+                let parent=document.querySelector('#selectOverlay .overlayContent');
+                if (! parent) return;
+                parent.innerHTML='';
+                let current='';
+                let ne=document.getElementById('selectionName');
+                if (ne) current=ne.value;
+                for (let i in data.data){
+                    let sel=data.data[i];
+                    //if (sel === current) continue;
+                    let item=document.createElement('div');
+                    item.classList.add('select');
+                    item.addEventListener('click',()=>{
+                        showSelection(sel);
+                        showHideOverlay('selectOverlay',false);
+                    })
+                    item.textContent=sel;
+                    parent.appendChild(item);
+                }
+                showHideOverlay('selectOverlay',true);
+            })
+            .catch((e)=>showError(e));
+    }
+    let updateTileCount=()=>{
+        let te=document.getElementById('numTiles');
+        if (! te) return;
+        te.classList.add('blink');
+        let bounds=getBoundsFromSelections(drawnItems);
+        apiRequest('countTiles?data='+encodeURIComponent(JSON.stringify(bounds)))
+            .then((resp)=>{
+                te.classList.remove('blink');
+                if (resp.numTiles > resp.allowed){
+                    te.classList.add('textError')
+                }
+                else{
+                    te.classList.remove('textError');
+                }
+                te.textContent=resp.numTiles;
+            })
+            .catch((e)=>showError(e));
+    }
+    let updateZoom=()=>{
+        let zoomInfo=document.getElementById('currentZoom');
+        if (! zoomInfo) return;
+        zoomInfo.textContent=map.getZoom();
+    }
     let buttonActions={
-        save:saveSelections
+        save:()=>saveSelections(false),
+        loadSelection: loadSelection,
+        startSeed: startSeed
     }
     let selectTab=function(id){
         forEach(document.querySelectorAll('.tab'),function(i,tab){
@@ -192,6 +267,7 @@ import {buttonEnable, showHideOverlay} from "./util";
                     if (id) selectTab(id);
                 })
             });
+        setCloseOverlayActions();
         flask=new CodeFlask('#editOverlay .overlayContent',{
             language: 'markup',
             lineNumbers: true,
@@ -204,6 +280,10 @@ import {buttonEnable, showHideOverlay} from "./util";
         if (selName) selName.value="selection-"+d.getFullYear()+"-"+d.getMonth()+"-"+d.getDate();
         let first=true;
         this.window.setInterval(function(){
+            let canSave=drawnItems.getLayers().length > 0;
+            forEach(document.querySelectorAll('button.withSelections'),(i,bt)=>{
+                buttonEnable(bt,canSave);
+            });
             let url='status';
             apiRequest(url)
             .then(function(data){
@@ -234,6 +314,7 @@ import {buttonEnable, showHideOverlay} from "./util";
         map=L.map('map').setView([54,13],6);
         drawnItems=new L.FeatureGroup();
         map.addLayer(drawnItems);
+        updateZoom();
 
         let drawControl = new L.Control.Draw({
             position: 'topright',
@@ -258,7 +339,11 @@ import {buttonEnable, showHideOverlay} from "./util";
         map.on(L.Draw.Event.CREATED, function (e) {
             let layer = e.layer;
             drawnItems.addLayer(layer);
+            updateTileCount();
         });
+        map.on(L.Draw.Event.DELETED,updateTileCount);
+        map.on(L.Draw.Event.EDITED,updateTileCount);
+        map.on('zoomend',updateZoom)
         let layers={};
         apiRequest('layers')
             .then(function(resp){
@@ -283,7 +368,10 @@ import {buttonEnable, showHideOverlay} from "./util";
                             let rb = document.createElement('input');
                             rb.setAttribute('type', 'radio');
                             rb.setAttribute('name', 'layer');
-                            if (first) rb.checked = true;
+                            if (first) {
+                                rb.checked = true;
+                                selectedLayer=lname;
+                            }
                             let layer=L.tileLayer(lconfig.url+'/{z}/{x}/{y}.png');
                             layers[lname]=layer;
                             if (first) map.addLayer(layer);
@@ -293,7 +381,10 @@ import {buttonEnable, showHideOverlay} from "./util";
                                     function(idx,el){
                                     let layer=layers[el.getAttribute('value')];
                                     if (layer) {
-                                        if (el.checked) map.addLayer(layer);
+                                        if (el.checked) {
+                                            map.addLayer(layer);
+                                            selectedLayer=el.getAttribute('value');
+                                        }
                                         else map.removeLayer(layer);
                                     }
                                     })

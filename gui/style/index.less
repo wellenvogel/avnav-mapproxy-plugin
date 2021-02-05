@@ -1,4 +1,4 @@
-
+@smallBreak: 1000px;
 *{
     box-sizing: border-box;
 }
@@ -34,6 +34,9 @@ text {
 }
 .error{
     background-image: radial-gradient(rgba(240, 10, 10,1), rgba(240, 10, 10, 0.6),transparent);
+}
+.textError{
+    background-color: rgba(246, 2, 2,0.6);
 }
 .title {
     height: 4em;
@@ -86,12 +89,33 @@ iframe.demoFrame {
     width: 100%;
 }
 
-.infoFrame {
-    flex: 1;
-    border-collapse: collapse;
-    margin: 1em;
-    border: 1px solid grey;
+#downloadtab{
+    .rightFrame{
+        display: flex;
+        flex-direction: column;
+        .frame{
+            display: flex;
+            flex-direction: column;
+            @media (max-width: @smallBreak){
+                flex-direction: row;
+                flex-wrap: wrap;
+            }
+        }
+    }
+    .buttonFrame{
+        margin-top: 1em;
+        @media(max-width: @smallBreak){
+            margin-top:unset;
+        }
+    }
+    .value {
+        display: block;
+        padding: 0.3em;
+        font-size: 1em;
+        min-height: 1em;
+    }
 }
+
 
 .statusFrame {
     display: flex;
@@ -105,18 +129,10 @@ iframe.demoFrame {
     display: flex;
     flex-direction: column;
 }
-.selectionName {
-    margin-bottom: 1em;
-}
 .selectionName input {
     border: 1px solid lightgray;
     padding: 0.3em;
     font-size: 1em;
-}
-
-.buttonFrame {
-    display: flex;
-    flex-direction: column;
 }
 
 
@@ -181,13 +197,18 @@ button {
     height: 100%;
 }
 
+.select {
+    padding: 1em;
+    border-bottom: 1px solid lightgray;
+}
+
 .overlayFrame{
     position: fixed;
     left: 0;
     right: 0;
     top: 0;
     bottom: 0;
-    z-index: 10;
+    z-index: 1000;
     background-color: #00000073;
     display: flex;
     flex-direction: column;
@@ -204,6 +225,14 @@ button {
     max-height: 90%;
     background-color: white;
     flex: 1;
+    h3 {
+        padding-left: 1em;
+    }
+    .select {
+        padding: 1em;
+        border-bottom: 1px solid lightgray;
+    }
+
 }
 
 #editOverlay .overlay{
@@ -228,13 +257,9 @@ button {
     justify-content: flex-end;
 }
 
-@media (max-width: 1000px) {
+@media (max-width: @smallBreak) {
     #root{
         flex-direction: column;
-    }
-    .rightFrame{
-        align-items: stretch;
-        margin: 0;
     }
     #downloadtab{
         flex-direction: column;

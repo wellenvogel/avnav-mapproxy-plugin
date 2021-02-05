@@ -19,12 +19,19 @@
 #  FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 #  DEALINGS IN THE SOFTWARE.
 ###############################################################################
+import math
 import os
 import re
 import sys
 
 import yaml
 
+def deg2num(lat_deg, lon_deg, zoom):
+  lat_rad = math.radians(lat_deg)
+  n = 2.0 ** zoom
+  xtile = int((lon_deg + 180.0) / 360.0 * n)
+  ytile = int((1.0 - math.asinh(math.tan(lat_rad)) / math.pi) / 2.0 * n)
+  return (xtile, ytile,zoom)
 
 class LogEnabled(object):
   def __init__(self,logHandler=None):
@@ -32,13 +39,13 @@ class LogEnabled(object):
 
   def logDebug(self,fmt,*args):
     if (self.logHandler):
-      self.logHandler.logDebug(fmt,*args)
+      self.logHandler.debug(fmt,*args)
   def logInfo(self,fmt,*args):
     if (self.logHandler):
-      self.logHandler.logInfo(fmt,*args)
+      self.logHandler.log(fmt,*args)
   def logError(self,fmt,*args):
     if (self.logHandler):
-      self.logHandler.logError(fmt,*args)
+      self.logHandler.error(fmt,*args)
 
 
 class LatLng(object):
@@ -98,10 +105,12 @@ class Box(object):
 
   def extend(self,other):
     '''
-    extend a box to include the other box
+    extend a box to include the other boxlog
     :param other:
     :return:
     '''
+    if other is None:
+      return False
     hasChanged=False
     if other.northeast.lat > self.northeast.lat:
       self.northeast.lat=other.northeast.lat
@@ -125,6 +134,15 @@ class Box(object):
     '''
     return [self.southwest.lng,self.southwest.lat,self.northeast.lng,self.northeast.lat]
 
+  def getNumTiles(self):
+    if self.zoom is None or self.zoom < 0:
+      return 0
+    netile=deg2num(self.northeast.lat,self.northeast.lng,self.zoom)
+    swtile=deg2num(self.southwest.lat,self.southwest.lng,self.zoom)
+    xdiff=abs(netile[0]-swtile[0])+1
+    ydiff=abs(netile[1]-netile[1])+1
+    return xdiff*ydiff
+
 yaml.add_representer(Box,Box.representYaml,Dumper=yaml.dumper.SafeDumper)
 class Boxes(LogEnabled):
   BOXES=os.path.join(os.path.dirname(__file__),'boxes','allcountries.bbox')
@@ -133,12 +151,14 @@ class Boxes(LogEnabled):
     self.boxesFile=boxes if boxes is not None else self.BOXES
     self.logHandler=logHandler
     self.merges=[]
+    self.numTiles=0
 
   #line from boxes:
   #         z   s    w     n    e
   #1U319240 12 24.0 119.0 25.0 120.0
   def mergeBoxes(self,boxesList,minZoom=0,maxZoom=20):
     rt=[]
+    numTiles=0
     with open(self.boxesFile,"r") as fh:
       for bline in fh:
         parts=re.split('  *',bline.rstrip())
@@ -163,10 +183,13 @@ class Boxes(LogEnabled):
             if result is not None:
               self.logDebug("adding from %s: %s",str(chartBox),str(result))
               rt.append(result)
+              #we assume that the boxes do not overlap at one level...
+              numTiles+=result.getNumTiles()
         except Exception as e:
           self.logError("unable to parse %s:%s",bline,str(e))
     self.merges=rt
-    return rt
+    self.numTiles=numTiles
+    return (rt,numTiles)
 
   def getParsed(self,merged=None):
     if merged is None:
@@ -239,15 +262,37 @@ class SeedWriter(LogEnabled):
     return out
 
 
+def createSeed(boundsFile,name,caches,seedFile=None,logger=None):
+  merger = Boxes(logHandler=logger)
+  with open(boundsFile, 'r') as h:
+    blist = yaml.safe_load(h)
+  boxesList = []
+  for b in blist:
+    boxesList.append(Box.fromDict(b))
+  res = merger.mergeBoxes(boxesList)
+  writer = SeedWriter(logger)
+  seeds = writer.buildOutput(merger.getParsed(), name, {'caches': caches})
+  if seedFile is not None:
+    writer.write(seedFile, seeds)
+  return merger.numTiles
+
+def countTiles(bounds,logger=None):
+  merger = Boxes(logHandler=logger)
+  boxesList = []
+  for b in bounds:
+    boxesList.append(Box.fromDict(b))
+  merger.mergeBoxes(boxesList)
+  return merger.numTiles
+
 if __name__ == '__main__':
   def usage():
     print("usage: %s infile outfile name caches"%sys.argv[0],file=sys.stderr)
   class Log(object):
-    def logInfo(self,fmt,*args):
+    def log(self,fmt,*args):
       print("I:%s"%(fmt%(args)))
-    def logDebug(self,fmt,*args):
+    def debug(self,fmt,*args):
       print("D:%s"%(fmt%(args)))
-    def logError(self,fmt,*args):
+    def error(self,fmt,*args):
       print("E:%s"%(fmt%(args)))
 
   if len(sys.argv) != 5:

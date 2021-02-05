@@ -23,11 +23,13 @@ import importlib.util
 import io
 import json
 import os
+import re
 import shutil
 import sys
 import time
 import traceback
 import urllib.parse
+from datetime import datetime
 from wsgiref.headers import Headers
 from wsgiref.simple_server import ServerHandler
 
@@ -85,6 +87,10 @@ def merge_dict(conf, base):
         base[k] = v
   return base
 
+class MissingParameterException(Exception):
+  def __init__(self,name):
+    super().__init__("mssing or invalid parameter %s"%name)
+
 class Plugin:
   BASE_CONFIG='avnav_base.yaml'
   USER_CONFIG='avnav_user.yaml'
@@ -132,6 +138,12 @@ class Plugin:
           'name': 'chartQueryPeriod',
           'description': 'how often to query charts(s)',
           'default': 5
+        },
+
+        {
+          'name': 'maxTiles',
+          'description': 'max allowed tiles for one seed',
+          'default': 100000
         }
 
         ],
@@ -242,6 +254,19 @@ class Plugin:
     self.charts=rt
     return rt
 
+  def getSelectionDir(self):
+    return os.path.join(self.dataDir,'selections')
+
+  def listSelections(self):
+    rt=[]
+    for f in os.listdir(self.getSelectionDir()):
+      if f.endswith('.yaml'):
+        rt.append(f.replace('.yaml',''))
+    return rt
+
+  def safeName(self,name):
+    return re.sub('[^a-zA-Z0-9_.,-]','',name)
+
   def listCharts(self, hostip):
     self.api.debug("listCharts %s" % hostip)
     rt=[]
@@ -275,6 +300,11 @@ class Plugin:
         os.makedirs(self.dataDir)
       if not os.path.isdir(self.dataDir):
         raise Exception("unable to create data directory %s"%self.dataDir)
+      selections=self.getSelectionDir()
+      if not os.path.exists(selections):
+        os.makedirs(selections)
+      if not os.path.isdir(selections):
+        raise Exception("unable to create directory %s"%selections)
       configFiles=[self.BASE_CONFIG,self.USER_CONFIG]
       for f in configFiles:
         outname=os.path.join(self.dataDir,f)
@@ -286,7 +316,7 @@ class Plugin:
           self.api.log('creating config file %s from template %s',outname,src)
           shutil.copyfile(src,outname)
       self.createMapProxy()
-      # we register an handler for API requests
+      # we register an handler for API requestscreateSeed(boundsFile,seedFile,name,cache,logger=None):
       self.api.registerRequestHandler(self.handleApiRequest)
       self.api.registerUserApp(self.api.getBaseUrl() + "/api/mapproxy/demo/", "logo.png")
       self.api.registerChartProvider(self.listCharts)
@@ -369,7 +399,7 @@ class Plugin:
         env['CONTENT_LENGTH'] = length
 
       for k, v in handler.headers.items():
-        k = k.replace('-', '_').upper();
+        k = k.replace('-', '_').upper()
         v = v.strip()
         if k in env:
           continue  # skip content length, type,etc.
@@ -387,7 +417,22 @@ class Plugin:
       if internals.get('path') == path:
         return ce
 
+  def getSeedFile(self):
+    return os.path.join(self.dataDir,'currentSeed.yaml')
 
+  def startSeed(self,selectionName,cacheName):
+    name="seed-"+datetime.now().strftime('%Y%m%d-%H%M%s')
+    rt=seedCreator.createSeed(selectionName, name, cacheName, seedFile=self.getSeedFile(),logger=self.api)
+    #TODO realls start seed
+    return rt
+
+  def _getRequestParam(self,param,name,raiseMissing=True):
+    data = param.get(name)
+    if data is None or len(data) != 1:
+      if not raiseMissing:
+        return None
+      raise MissingParameterException(name)
+    return data[0]
   def handleApiRequest(self,url,handler,args):
     """
     handler for API requests send from the JS
@@ -397,24 +442,63 @@ class Plugin:
     @param args: dictionary of query arguments
     @return:
     """
-    if url == 'status':
-      return {'status': 'OK',
-              }
-    if url == 'layers':
-      return {
-        'status':'OK',
-        'data': self._getLayers()
-      }
-    if url == 'saveBoxes':
-      data=args.get('data')
-      if data is None or len(data) != 1:
-        return {'status':'missing or invalid parameter data'}
-      outname=os.path.join(self.dataDir,'boxes.yaml')
-      decoded=json.loads(data[0])
-      with open(outname,"w") as oh:
-        yaml.dump(decoded,oh)
-      return {'status':'OK'}
+    try:
+      if url == 'status':
+        return {'status': 'OK',
+                }
+      if url == 'layers':
+        return {
+          'status':'OK',
+          'data': self._getLayers()
+        }
+      if url == 'saveSelection':
+        data=self._getRequestParam(args,'data')
+        name=self._getRequestParam(args,'name')
+        startSeed=self._getRequestParam(args,'startSeed',raiseMissing=False)
+        name=self.safeName(name)
+        outname=os.path.join(self.getSelectionDir(),name+".yaml")
+        decoded=json.loads(data)
+        with open(outname,"w") as oh:
+          yaml.dump(decoded,oh)
+        if startSeed is not None:
+          layerName=startSeed
+          caches=self.layer2caches.get(layerName)
+          if caches is None:
+            return {'status':'no caches found for layer %s'%layerName}
+          num=self.startSeed(outname,caches)
+          return {'status':'OK','numTiles':num}
+        return {'status':'OK'}
 
+      if url == 'countTiles':
+        data=self._getRequestParam(args,'data')
+        rt=seedCreator.countTiles(json.loads(data),self.api)
+        return {'status':'OK','numTiles':rt,'allowed':self.getConfigValue('maxTiles')}
+      if url == 'listSelections':
+        return {'status':'OK','data':self.listSelections()}
+
+      if url == 'deleteSelection':
+        name = args.get('name')
+        if name is None or len(name) != 1:
+          return {'status': 'missing or invalid parameter name'}
+        name = self.safeName(name[0])
+        fname=os.path.join(self.getSelectionDir(),name+".yaml")
+        if os.path.exists(fname):
+          os.unlink(fname)
+        return {'status':'OK'}
+
+      if url == 'loadSelection':
+        name = args.get('name')
+        if name is None or len(name) != 1:
+          return {'status': 'missing or invalid parameter name'}
+        name = self.safeName(name[0])
+        fname = os.path.join(self.getSelectionDir(), name+".yaml")
+        if not os.path.exists(fname):
+          return {'status':'file %s not found'%fname}
+        with open(fname,"r") as fh:
+          data=yaml.safe_load(fh)
+        return {'status':'OK','data':data}
+    except Exception as e:
+      return {'status':str(e)}
     if url.startswith(self.MPREFIX):
       if url.endswith('/avnav.xml'):
         path=url.replace('/avnav.xml','')

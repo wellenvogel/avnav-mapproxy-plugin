@@ -19,9 +19,9 @@
 </noscript>
 <div class="title" id="title">AvNav Mapproxy</div>
 <div class="tabSelect">
-    <div class="selector" data-tabid="statustab">Status</div>
-    <div class="selector" data-tabid="demotab">Demo</div>
-    <div class="selector" data-tabid="downloadtab">Download</div>
+    <div class="selector" data-tabid="statustab">Main</div>
+    <div class="selector" data-tabid="downloadtab">Seed</div>
+    <div class="selector" data-tabid="demotab">Mapproxy</div>
 </div>
 <div id="root">
     <div class="tab" id="statustab">
@@ -31,7 +31,7 @@
                 <span id="networkStatus" class="statusText unknown"></span>
             </div>
             <div class="downloadState state">
-                <span class="label">Download</span>
+                <span class="label">Seed</span>
                 <span id="downloadStatus" class="statusText unknown"></span>
             </div>
         </div>
@@ -46,15 +46,27 @@
             </div>
         </div>
         <div class="rightFrame">
-            <div class="layerFrame" id="layerFrame">
+            <div class="layerFrame frame" id="layerFrame">
 
             </div>
-            <div class="buttonFrame">
-                <div class="selectionName">
+            <div class="infoFrame frame">
+                <div class="row selectionName">
                     <span class="label">Name:</span>
                     <input type="text" id="selectionName"/>
                 </div>
-                <button id="save">Save</button>
+                <div class="row">
+                    <span class="label">Zoom:</span>
+                    <span class="value" id="currentZoom"></span>
+                </div>
+                <div class="row">
+                    <span class="label">NumTiles:</span>
+                    <span class="value" id="numTiles">0</span>
+                </div>
+            </div>
+            <div class="buttonFrame frame">
+                <button id="loadSelection">Load</button>
+                <button id="save" >Save</button>
+                <button id="startSeed" class="withSelections">Start</button>
             </div>
         </div>
     </div>
@@ -66,8 +78,19 @@
         </div>
         <div class="overlayButtons">
             <button id="downloadEditOverlay">Download</button>
-            <button id="closeEditOverlay">Cancel</button>
+            <button class="closeOverlay">Cancel</button>
             <button id="saveEditOverlay">Save</button>
+        </div>
+    </div>
+</div>
+<div class="overlayFrame" id="selectOverlay">
+    <div class="overlay">
+        <h3>Selections</h3>
+        <div class="overlayContent">
+
+        </div>
+        <div class="overlayButtons">
+            <button class="closeOverlay">Cancel</button>
         </div>
     </div>
 </div>

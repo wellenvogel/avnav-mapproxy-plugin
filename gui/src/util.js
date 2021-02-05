@@ -21,6 +21,11 @@
 #  DEALINGS IN THE SOFTWARE.
 ###############################################################################
 */
+export const forEach = function (array, callback, scope) {
+    for (let i = 0; i < array.length; i++) {
+        callback.call(scope, i, array[i]); // passes back stuff we need
+    }
+};
 export const showHideOverlay=(id,show)=>{
     let ovl=id;
     if (typeof(id) === 'string'){
@@ -40,6 +45,11 @@ export const closeOverlayFromButton=(btEvent)=>{
         }
     }
 }
+export const setCloseOverlayActions=()=>{
+    forEach(document.querySelectorAll('button.closeOverlay'),(i,bt)=>{
+        bt.addEventListener('click',(ev)=>closeOverlayFromButton(ev));
+    })
+}
 export const buttonEnable=(id,enable)=>{
     let bt=id;
     if (typeof(id) === 'string'){
@@ -52,6 +62,11 @@ export const buttonEnable=(id,enable)=>{
     else{
         bt.setAttribute('disabled','');
     }
+}
+
+export const safeName=(name)=>{
+    if (! name) return;
+    return name.replace(/[^a-zA-Z0-9_.,-]/g,'');
 }
 
 
