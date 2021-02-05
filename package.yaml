@@ -20,7 +20,7 @@ license: "MIT"
 #scripts:
 #  postinstall: install/postinstall
 contents:
-- src: ./plugin.*
+- src: ./*.py
   dst: /usr/lib/avnav/plugins/mapproxy/
 - src: ./*.png
   dst: /usr/lib/avnav/plugins/mapproxy/
