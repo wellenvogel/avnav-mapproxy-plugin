@@ -233,7 +233,20 @@ import {
             .then(()=>{})
             .catch((e)=>showError(e));
     }
+    let showLog=()=>{
+        fetch(base+"/api/getLog").then((resp)=>resp.text())
+            .then((txt)=>{
+                let logel=document.querySelector('#logOverlay .overlayContent');
+                if (! logel) return;
+                logel.textContent=txt;
+                logel.scrollTop=logel.scrollHeight;
+                showHideOverlay('logOverlay',true)
+            })
+            .catch((e)=>showError(e))
+    }
     let buttonActions={
+        showLog: showLog,
+        reloadLog: showLog,
         killSeed: stopSeed,
         stopSeed: stopSeed,
         save:()=>saveSelections(false),
@@ -241,6 +254,7 @@ import {
         deleteSelection:deleteSelection,
         startSeed: startSeed
     }
+
     let selectTab=function(id){
         forEach(document.querySelectorAll('.tab'),function(i,tab){
             tab.classList.remove('active');
@@ -305,6 +319,7 @@ import {
                     setStateDisplay('.seedStatus',seedStatus)
                     buttonEnable('startSeed',seedStatus !== 'running' && canSave);
                     buttonEnable('killSeed',seedStatus === 'running');
+                    buttonEnable('showLog',(data.seed||{}).logFile);
                     let name=(data.seed || {}).name||'';
                     if (name instanceof Array) name=name.join(',');
                     setTextContent('.seedInfo',name+" "+(data.seed || {}).info)

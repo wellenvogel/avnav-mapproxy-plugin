@@ -207,7 +207,7 @@ class SeedRunner(object):
       'status':self.seedStatus,
       'info':self.info,
       'name':self.seedName,
-      'logFile':self.currentLog
+      'logFile':os.path.basename(self.currentLog) if self.currentLog is not None else None
     }
 
   def getLogFile(self,name,bytesFromEnd=None):
@@ -216,13 +216,21 @@ class SeedRunner(object):
     :param name:
     :return:
     '''
+    if name is None:
+      return
     for f in os.listdir(self.workdir):
       if not f.startswith(self.LOGFILE):
         continue
       if f == name:
-        fh=open(f,'rb')
+        fname=os.path.join(self.workdir,f)
+        st=os.stat(fname)
+        size=st.st_size
+        fh=open(fname,'rb')
         if bytesFromEnd is not None:
-          fh.seek(bytesFromEnd,2)
+          if bytesFromEnd> size:
+            bytesFromEnd=size
+          spos=size-bytesFromEnd
+          fh.seek(spos)
         return fh
 
 

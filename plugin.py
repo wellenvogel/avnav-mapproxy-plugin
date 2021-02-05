@@ -264,7 +264,11 @@ class Plugin:
       self.seedRunner.checkRestart()
       # we register an handler for API requestscreateSeed(boundsFile,seedFile,name,cache,logger=None):
       self.api.registerRequestHandler(self.handleApiRequest)
-      self.api.registerUserApp(self.api.getBaseUrl() + "/api/mapproxy/demo/", "logo.png")
+      guiPath="gui/index.html"
+      testPath=self._getConfigValue('guiPath')
+      if testPath is not None:
+        guiPath=testPath
+      self.api.registerUserApp(self.api.getBaseUrl() + "/"+guiPath, "logo.png")
       self.api.registerChartProvider(self.listCharts)
       self.queryPeriod=int(self._getConfigValue('chartQueryPeriod'))
     except Exception as e:
@@ -379,6 +383,18 @@ class Plugin:
         return {'status':'OK','data':data}
     except Exception as e:
       return {'status':str(e)}
+    if url == 'getLog':
+      status=self.seedRunner.getStatus()
+      fh=self.seedRunner.getLogFile(status.get('logFile'),100000)
+      if fh is None:
+        raise Exception("no log file")
+      handler.send_response(200, "OK")
+      handler.send_header('Content-Type', 'text/plain')
+      handler.send_header("Last-Modified", handler.date_time_string())
+      handler.end_headers()
+      handler.close_connection=True
+      shutil.copyfileobj(fh,handler.wfile)
+      return True
 
     #mapproxy requests
     if url.startswith(self.MPREFIX):
