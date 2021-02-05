@@ -1,4 +1,5 @@
 @smallBreak: 1000px;
+@import "spinner";
 *{
     box-sizing: border-box;
 }
@@ -32,6 +33,10 @@ text {
 .ok{
     background-image: radial-gradient(rgba(10, 240, 10,1), rgba(10, 240, 10, 0.6),transparent);    
 }
+.running{
+    .blink();
+    background-image: radial-gradient(rgba(10, 240, 10,1), rgba(10, 240, 10, 0.6),transparent);
+}
 .error{
     background-image: radial-gradient(rgba(240, 10, 10,1), rgba(240, 10, 10, 0.6),transparent);
 }
@@ -62,9 +67,6 @@ text {
     flex-direction: column;
     flex: 1;
 }
-#downloadtab{
-    flex-direction: row;
-}
 
 .tabSelect {
     display: flex;
@@ -90,6 +92,7 @@ iframe.demoFrame {
 }
 
 #downloadtab{
+    flex-direction: row;
     .rightFrame{
         display: flex;
         flex-direction: column;
@@ -109,10 +112,26 @@ iframe.demoFrame {
         }
     }
     .value {
-        display: block;
+        display: inline-block;
         padding: 0.3em;
         font-size: 1em;
         min-height: 1em;
+        &.seedInfo{
+            font-size: 0.8em;
+            max-width: 18em;
+            word-break: break-all;
+        }
+    }
+
+}
+
+#statustab{
+    #stopSeed{
+        width: 4em;
+        margin-left: 1em;
+        margin-right: 1em;
+        flex-shrink: 0;
+        display:none;
     }
 }
 
@@ -129,10 +148,18 @@ iframe.demoFrame {
     display: flex;
     flex-direction: column;
 }
-.selectionName input {
-    border: 1px solid lightgray;
-    padding: 0.3em;
-    font-size: 1em;
+.selectionName{
+    input {
+        border: 1px solid lightgray;
+        padding: 0.3em;
+        font-size: 1em;
+    }
+    .label{
+        display: block;
+        @media(max-width: @smallBreak){
+            display: inline-block;
+        }
+    }
 }
 
 
@@ -148,7 +175,10 @@ button {
     border-color: #80808047;
 }
 
-
+.row {
+    display: flex;
+    align-items: center;
+}
 
 .state {
     display: flex;
@@ -157,26 +187,31 @@ button {
     border-bottom: 1px solid grey;
     margin-bottom: 0.5em;
     padding-bottom: 0.5em;
+    flex-wrap: wrap;
 
 }
 
 .label {
-    display: block;
+    display: inline-block;
     margin: 0.3em;
     font-size: 0.8em;
     opacity: 0.6;
+    width: 5em;
 }
 .state .label {
-    width: 10em;
+    width: 6em;
+    flex-shrink: 0;
+    flex-grow: 0;
 }
 
 
 .statusText{
     margin: 0.3em;
     height: 1em;
-    display: block;
+    display: inline-block;
     width: 1em;
     border-radius: 50%;
+    flex-shrink: 0;
 }
 
 .statusText[data-status="3"] {
@@ -255,6 +290,13 @@ button {
     display: flex;
     flex-direction: row;
     justify-content: flex-end;
+}
+#spinnerOverlay{
+    .overlayContent{
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
 }
 
 @media (max-width: @smallBreak) {

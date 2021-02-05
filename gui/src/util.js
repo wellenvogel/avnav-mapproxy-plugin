@@ -95,4 +95,27 @@ export const showSelectOverlay=(list,title,current,overlayId)=>{
     })
 }
 
+export const STATECLASSES=['unknown','error','ok','running'];
+export const setStateDisplay=(query,stateClass)=>{
+    if (STATECLASSES.indexOf(stateClass) < 0) stateClass='unknown';
+    forEach(document.querySelectorAll(query),(i,el)=>{
+        STATECLASSES.forEach(function(state){
+            if (state !== stateClass){
+                el.classList.remove(state);
+            }
+            else{
+                el.classList.add(state);
+            }
+        });
+    });
+}
+export const setTextContent=(query,value)=>{
+
+    forEach(document.querySelectorAll(query),(i,el)=>{
+        if (el.tagName === 'INPUT') el.value=value;
+        else el.textContent=value;
+    })
+}
+
+
 

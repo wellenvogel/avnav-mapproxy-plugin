@@ -26,13 +26,15 @@
 <div id="root">
     <div class="tab" id="statustab">
         <div class="statusFrame">
-            <div class="networkState state">
+            <div class="state">
                 <span class="label">Internet</span>
-                <span id="networkStatus" class="statusText unknown"></span>
+                <span class="statusText networkState unknown"></span>
             </div>
-            <div class="downloadState state">
+            <div class="state">
                 <span class="label">Seed</span>
-                <span id="downloadStatus" class="statusText unknown"></span>
+                <span class="seedStatus statusText unknown"></span>
+                <button id="stopSeed" >Kill</button>
+                <span class="value seedInfo"></span>
             </div>
         </div>
     </div>
@@ -62,12 +64,20 @@
                     <span class="label">NumTiles:</span>
                     <span class="value" id="numTiles">0</span>
                 </div>
+                <div class="row">
+                    <span class="label">Seed:</span>
+                    <span  class="statusText unknown seedStatus"></span>
+                </div>
+                <div class="row">
+                    <span class="value seedInfo"></span>
+                </div>
             </div>
             <div class="buttonFrame frame">
                 <button id="loadSelection">Load</button>
                 <button id="deleteSelection">Delete</button>
                 <button id="save" >Save</button>
-                <button id="startSeed" class="withSelections">Start</button>
+                <button id="startSeed" >Start</button>
+                <button id="killSeed">Kill</button>
             </div>
         </div>
     </div>
@@ -88,6 +98,17 @@
     <div class="overlay">
         <h3 class="overlayTitle">Selections</h3>
         <div class="overlayContent">
+
+        </div>
+        <div class="overlayButtons">
+            <button class="closeOverlay">Cancel</button>
+        </div>
+    </div>
+</div>
+<div class="overlayFrame" id="spinnerOverlay">
+    <div class="overlay">
+        <div class="overlayContent">
+            <div class="lds-dual-ring"></div>
 
         </div>
         <div class="overlayButtons">

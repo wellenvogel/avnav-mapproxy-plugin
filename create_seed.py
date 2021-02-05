@@ -274,7 +274,7 @@ def createSeed(boundsFile,name,caches,seedFile=None,logger=None):
   seeds = writer.buildOutput(merger.getParsed(), name, {'caches': caches})
   if seedFile is not None:
     writer.write(seedFile, seeds)
-  return merger.numTiles
+  return (merger.numTiles,seeds)
 
 def countTiles(bounds,logger=None):
   merger = Boxes(logHandler=logger)

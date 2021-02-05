@@ -27,7 +27,15 @@ import 'leaflet-draw/dist/leaflet.draw.css';
 import L from 'leaflet';
 import 'leaflet-draw';
 import {getBoundsFromSelections, getIntersectionBounds, tileCountForBounds} from "./map";
-import {buttonEnable, safeName, showHideOverlay, forEach, setCloseOverlayActions, showSelectOverlay} from "./util";
+import {
+    buttonEnable,
+    safeName,
+    showHideOverlay,
+    forEach,
+    setCloseOverlayActions,
+    showSelectOverlay,
+    setStateDisplay, setTextContent
+} from "./util";
 (function(){
     let selectedLayer=undefined;
     let base=window.location.href.replace(/mapproxy\/gui.*/,'mapproxy');
@@ -148,13 +156,18 @@ import {buttonEnable, safeName, showHideOverlay, forEach, setCloseOverlayActions
         apiRequest(url
         )
         .then((res)=>{
+            showHideOverlay('spinnerOverlay',false);
             if (res.numTiles !== undefined){
                 alert("seed started with "+res.numTiles+" tiles");
             }
         })
-        .catch((e)=>showError(e));
+        .catch((e)=>{
+            showHideOverlay('spinnerOverlay',false);
+            showError(e);
+        });
     }
     let startSeed=()=>{
+        showHideOverlay('spinnerOverlay',true)
         saveSelections(true);
     }
     let showSelection=(name)=>{
@@ -213,11 +226,16 @@ import {buttonEnable, safeName, showHideOverlay, forEach, setCloseOverlayActions
             .catch((e)=>showError(e));
     }
     let updateZoom=()=>{
-        let zoomInfo=document.getElementById('currentZoom');
-        if (! zoomInfo) return;
-        zoomInfo.textContent=map.getZoom();
+        setTextContent('#currentZoom',map.getZoom());
+    }
+    let stopSeed=()=>{
+        apiRequest('killSeed')
+            .then(()=>{})
+            .catch((e)=>showError(e));
     }
     let buttonActions={
+        killSeed: stopSeed,
+        stopSeed: stopSeed,
         save:()=>saveSelections(false),
         loadSelection: loadSelection,
         deleteSelection:deleteSelection,
@@ -277,38 +295,27 @@ import {buttonEnable, safeName, showHideOverlay, forEach, setCloseOverlayActions
         let d=new Date()
         if (selName) selName.value="selection-"+d.getFullYear()+"-"+d.getMonth()+"-"+d.getDate();
         let first=true;
-        this.window.setInterval(function(){
-            let canSave=drawnItems.getLayers().length > 0;
-            forEach(document.querySelectorAll('button.withSelections'),(i,bt)=>{
-                buttonEnable(bt,canSave);
-            });
-            let url='status';
+        this.window.setInterval(function () {
+            let canSave = drawnItems.getLayers().length > 0;
+            let url = 'status';
             apiRequest(url)
-            .then(function(data){
-                if (networkState){
-                    let newState='unknown';
-                    if (data.network !== undefined){
-                        if (data.network) newState='ok';
-                        else newState='error';
-                    }
-                    if (! networkState.classList.contains(newState)){
-                        let states=['unknown','error','ok'];
-                        states.forEach(function(state){
-                            if (state !== newState){
-                                networkState.classList.remove(state);
-                            }
-                            else{
-                                networkState.classList.add(state);
-                            }
-                        });
-                    }
-                }
-
-            })
-            .catch(function(error){
-                console.log(error);
-            })
-        },1000);
+                .then(function (data) {
+                    setStateDisplay('.networkState', data.network);
+                    let seedStatus=(data.seed || {}).status;
+                    setStateDisplay('.seedStatus',seedStatus)
+                    buttonEnable('startSeed',seedStatus !== 'running' && canSave);
+                    buttonEnable('killSeed',seedStatus === 'running');
+                    let name=(data.seed || {}).name||'';
+                    if (name instanceof Array) name=name.join(',');
+                    setTextContent('.seedInfo',name+" "+(data.seed || {}).info)
+                    forEach(document.querySelectorAll('#stopSeed'),(i,el)=>{
+                        el.style.display=(seedStatus === 'running')?'inline-block':'none'
+                    })
+                })
+                .catch(function (error) {
+                    console.log(error);
+                })
+        }, 1000);
         map=L.map('map').setView([54,13],6);
         drawnItems=new L.FeatureGroup();
         map.addLayer(drawnItems);

@@ -30,11 +30,10 @@ import time
 import traceback
 import urllib.parse
 from datetime import datetime
-from wsgiref.headers import Headers
-from wsgiref.simple_server import ServerHandler
+
 
 import yaml
-from mapproxy.wsgiapp import make_wsgi_app
+
 from xml.sax.saxutils import escape
 
 
@@ -50,28 +49,11 @@ def loadModuleFromFile(fileName):
   return module
 
 seedCreator=loadModuleFromFile('create_seed.py')
+seedRunner=loadModuleFromFile('seed_runner.py')
+mapproxyWrapper=loadModuleFromFile('mapproxy_wrapper.py')
 
 NAME="mapproxy"
 
-class OwnWsgiHeaders(Headers):
-
-  def __init__(self, headers=None):
-    if headers is not None:
-      nh=[]
-      for k,v in headers:
-        nh.append((str(k),str(v)))
-      headers=nh
-    super().__init__(headers)
-
-
-class OwnWsgiHandler(ServerHandler):
-  headers_class = OwnWsgiHeaders
-
-  def _convert_string_type(self, value, title):
-    """Convert/check value type."""
-    if type(value) is str:
-      return value
-    return str(value)
 
 def merge_dict(conf, base):
   """
@@ -97,6 +79,8 @@ class Plugin:
   NAME_PREFIX='mp-'
   MPREFIX="mapproxy"
   ICONFILE="logo.png"
+  WD_SELECTIONS='selections'
+  WD_SEED='seed'
   AVNAV_XML = """<?xml version="1.0" encoding="UTF-8" ?>
     <TileMapService version="1.0.0" >
      <Title>%(title)s</Title>
@@ -166,36 +150,17 @@ class Plugin:
     self.charts=[]
     self.layer2caches={}
     self.queryPeriod=5
+    self.seedRunner=None
 
 
 
-  def getConfigValue(self,name):
+  def _getConfigValue(self, name):
     defaults=self.pluginInfo()['config']
     for cf in defaults:
       if cf['name'] == name:
-        return self.api.getConfigValue(name,cf.get('default'))
+        return self.api.getConfigValue(name, cf.get('default'))
     return self.api.getConfigValue(name)
 
-  def createMapProxy(self):
-    configFile=os.path.join(self.dataDir,self.USER_CONFIG)
-    self.api.setStatus('INACTIVE','creating mapproxy with config %s'%configFile)
-    self.mapproxy = make_wsgi_app(configFile,ignore_config_warnings=False, reloader=True)
-    self.api.log("created mapproxy wsgi app")
-
-  def _readConfig(self,mainCfg,raiseError=False):
-    from mapproxy.config.loader import load_configuration_file
-    rt={}
-    if not os.path.exists(mainCfg):
-      return rt
-    dir=os.path.dirname(mainCfg)
-    fname=os.path.basename(mainCfg)
-    try:
-      rt=load_configuration_file([fname],dir)
-    except Exception as e:
-      self.api.debug("Error reading config from %s: %s",mainCfg,traceback.format_exc())
-      if raiseError:
-        raise
-    return rt
 
   def _getLayers(self):
     rt={}
@@ -208,63 +173,41 @@ class Plugin:
     return rt
 
 
-  def getMaps(self):
+  def _getMaps(self):
     rt=[]
-    if self.mapproxy is None or self.mapproxy.app is None:
+    if self.mapproxy is None:
       self.api.debug("mapproxy not initialized in getMaps")
       return rt
-    handlers=self.mapproxy.app.handlers
-    if handlers is None or handlers.get('tiles') is None:
-      self.api.debug("no tiles service in mapproxy in getMaps")
-      return rt
-    tiles=handlers['tiles']
-    internalPath=self.MPREFIX+"/tiles/1.0.0"
-    chartBase=self.api.getBaseUrl()+"/api/"+internalPath
-    iconUrl=self.api.getBaseUrl()+"/"+self.ICONFILE
-    for k,v in tiles.layers.items():
-      internals={
-        'path':internalPath+"/"+k[0]+"/"+k[1],
-        'layer':k[0],
-        'grid': k[1]
-      }
-      try:
-        #there should be some checks...
-        extent=v.extent
-        if extent is not None and extent.llbbox is not None:
-          internals['minlon']=extent.llbbox[0]
-          internals['minlat']=extent.llbbox[1]
-          internals['maxlon']=extent.llbbox[2]
-          internals['maxlat']=extent.llbbox[3]
-        if v.grid is not None and v.grid.tile_sets is not None:
-          zooms=[]
-          for ts in v.grid.tile_sets:
-            zooms.append(ts[0])
-          internals['minzoom']=min(zooms)
-          internals['maxzoom']=max(zooms)
-      except Exception as e:
-        self.api.debug("unable to fetch internals for layer: %s",str(e))
-      entry={
-        'name': self.NAME_PREFIX+k[0],
-        'url': chartBase+"/"+k[0]+"/"+k[1],
-        'icon': iconUrl,
-        'sequence':self.sequence,
-        'internal':internals
-      }
-      rt.append(entry)
+    mplist=self.mapproxy.getMaps()
+    internalPath = self.MPREFIX + "/tiles/1.0.0"
+    chartBase = self.api.getBaseUrl() + "/api/" + internalPath
+    iconUrl = self.api.getBaseUrl() + "/" + self.ICONFILE
+    for chart in mplist:
+      if chart.get('internal') is None:
+        continue
+      internals=chart['internal']
+      internals['path']=internalPath+"/"+internals.get('path','')
+      chart['name']=self.NAME_PREFIX+chart.get('name','')
+      chart['url']=chartBase+"/"+chart.get('url','')
+      chart['icon']= iconUrl
+      chart['sequence']=self.sequence
+      rt.append(chart)
     self.charts=rt
     return rt
 
-  def getSelectionDir(self):
-    return os.path.join(self.dataDir,'selections')
+  def _getDataDir(self,subDir=None):
+    if subDir is None:
+      return self.dataDir
+    return os.path.join(self.dataDir,subDir)
 
-  def listSelections(self):
+  def _listSelections(self):
     rt=[]
-    for f in os.listdir(self.getSelectionDir()):
+    for f in os.listdir(self._getDataDir(self.WD_SELECTIONS)):
       if f.endswith('.yaml'):
         rt.append(f.replace('.yaml',''))
     return rt
 
-  def safeName(self,name):
+  def _safeName(self, name):
     return re.sub('[^a-zA-Z0-9_.,-]','',name)
 
   def listCharts(self, hostip):
@@ -291,20 +234,17 @@ class Plugin:
     """
     try:
       avnavData=self.api.getDataDir()
-      self.dataDir=self.getConfigValue('dataDir')
+      self.dataDir=self._getConfigValue('dataDir')
       if self.dataDir is not None:
         self.dataDir=self.dataDir.replace('$DATADIR',avnavData)
       else:
         self.dataDir=os.path.join(avnavData,'mapproxy')
-      if not os.path.exists(self.dataDir):
-        os.makedirs(self.dataDir)
-      if not os.path.isdir(self.dataDir):
-        raise Exception("unable to create data directory %s"%self.dataDir)
-      selections=self.getSelectionDir()
-      if not os.path.exists(selections):
-        os.makedirs(selections)
-      if not os.path.isdir(selections):
-        raise Exception("unable to create directory %s"%selections)
+      for d in [None,self.WD_SELECTIONS,self.WD_SEED]:
+        dirpath=self._getDataDir(d)
+        if not os.path.exists(dirpath):
+          os.makedirs(dirpath)
+        if not os.path.isdir(dirpath):
+          raise Exception("unable to create data directory %s"%dirpath)
       configFiles=[self.BASE_CONFIG,self.USER_CONFIG]
       for f in configFiles:
         outname=os.path.join(self.dataDir,f)
@@ -315,12 +255,18 @@ class Plugin:
             return
           self.api.log('creating config file %s from template %s',outname,src)
           shutil.copyfile(src,outname)
-      self.createMapProxy()
+      self.mapproxy=mapproxyWrapper.MapProxyWrapper(self.api.getBaseUrl()+"/api/"+self.MPREFIX,
+                                                os.path.join(self.dataDir,self.USER_CONFIG),
+                                                self.api)
+      self.seedRunner=seedRunner.SeedRunner(self._getDataDir(self.WD_SEED),
+                                            os.path.join(self.dataDir, self.USER_CONFIG),
+                                            self.api)
+      self.seedRunner.checkRestart()
       # we register an handler for API requestscreateSeed(boundsFile,seedFile,name,cache,logger=None):
       self.api.registerRequestHandler(self.handleApiRequest)
       self.api.registerUserApp(self.api.getBaseUrl() + "/api/mapproxy/demo/", "logo.png")
       self.api.registerChartProvider(self.listCharts)
-      self.queryPeriod=int(self.getConfigValue('chartQueryPeriod'))
+      self.queryPeriod=int(self._getConfigValue('chartQueryPeriod'))
     except Exception as e:
       self.api.error("error in startup: %s",traceback.format_exc())
       self.api.setStatus("ERROR","exception in startup: %s"%str(e))
@@ -330,84 +276,19 @@ class Plugin:
     self.api.setStatus("NMEA","successfully started with config file %s"%configFile)
     while True:
       try:
-        self.getMaps()
+        if self.seedRunner is not None:
+          self.seedRunner.checkRunning()
+      except Exception as e:
+        self.api.debug("Exception when checking seed runner: %s",str(e))
+      try:
+        self._getMaps()
       except Exception as e:
         self.api.debug("error in main loop: %s",traceback.format_exc())
       try:
-        config=self._readConfig(os.path.join(self.dataDir,self.USER_CONFIG))
-        layer2caches={}
-        layers=config.get('layers')
-        caches=config.get('caches')
-        if layers is not None and caches is not None:
-          layerlist=[]
-          if isinstance(layers,list):
-            layerlist=layers
-          else:
-            for k,v in layers.items():
-              v['name']=k
-            layerlist=list(layers.values())
-          for layer in layerlist:
-            name=layer.get('name')
-            sources=layer.get('sources',[])
-            if name is None:
-              continue
-            for s in sources:
-              if s in caches:
-                if layer2caches.get(name) is None:
-                  layer2caches[name]=[]
-                layer2caches[name].append(s)
-        self.layer2caches=layer2caches
+        self.layer2caches=self.mapproxy.getMappings()
       except Exception as e:
         self.api.debug("error in main loop reading config: %s",traceback.format_exc())
       time.sleep(self.queryPeriod)
-
-
-  def getWsgiEnv(self,handler):
-      server_version = "WSGIServer/0.2"
-
-      env = {}
-      env['SERVER_NAME'] = 'avnav'
-      env['GATEWAY_INTERFACE'] = 'CGI/1.1'
-      env['SERVER_PORT'] = str(handler.server.server_port)
-      env['REMOTE_HOST'] = ''
-      env['CONTENT_LENGTH'] = ''
-      env['SCRIPT_NAME'] = ''
-      env['SERVER_PROTOCOL'] = handler.request_version
-      env['SERVER_SOFTWARE'] = server_version
-      env['REQUEST_METHOD'] = handler.command
-      if '?' in handler.path:
-        path, query = handler.path.split('?', 1)
-      else:
-        path, query = handler.path, ''
-      ownPath=self.api.getBaseUrl()+"/api/"+self.MPREFIX
-      mpath=urllib.parse.unquote(path, 'iso-8859-1')[len(ownPath):]
-      env['PATH_INFO'] = mpath
-      env['QUERY_STRING'] = query
-
-      host = handler.address_string()
-      if host != handler.client_address[0]:
-        env['REMOTE_HOST'] = host
-      env['REMOTE_ADDR'] = handler.client_address[0]
-
-      if handler.headers.get('content-type') is None:
-        env['CONTENT_TYPE'] = handler.headers.get_content_type()
-      else:
-        env['CONTENT_TYPE'] = handler.headers['content-type']
-
-      length = handler.headers.get('content-length')
-      if length:
-        env['CONTENT_LENGTH'] = length
-
-      for k, v in handler.headers.items():
-        k = k.replace('-', '_').upper()
-        v = v.strip()
-        if k in env:
-          continue  # skip content length, type,etc.
-        if 'HTTP_' + k in env:
-          env['HTTP_' + k] += ',' + v  # comma-separate multiple headers
-        else:
-          env['HTTP_' + k] = v
-      return env
 
   def _findChartEntry(self,path):
     for ce in self.charts:
@@ -417,15 +298,15 @@ class Plugin:
       if internals.get('path') == path:
         return ce
 
-  def getSeedFile(self):
-    return os.path.join(self.dataDir,'currentSeed.yaml')
 
-  def startSeed(self,selectionName,cacheName):
+  def _startSeed(self, selectionName, cacheName):
     name="seed-"+datetime.now().strftime('%Y%m%d-%H%M%s')
-    rt=seedCreator.createSeed(selectionName, name, cacheName, seedFile=self.getSeedFile(),logger=self.api)
-    #TODO realls start seed
-    return rt
-
+    (numTiles,seeds)=seedCreator.createSeed(selectionName, name, cacheName,  logger=self.api)
+    self.seedRunner.runSeed(seeds,cacheName)
+    return numTiles
+  def _getSelectionFile(self,name):
+    name=self._safeName(name)
+    return os.path.join(self._getDataDir(self.WD_SELECTIONS),name+".yaml")
   def _getRequestParam(self,param,name,raiseMissing=True):
     data = param.get(name)
     if data is None or len(data) != 1:
@@ -444,8 +325,10 @@ class Plugin:
     """
     try:
       if url == 'status':
-        return {'status': 'OK',
-                }
+        rt={'status': 'OK'}
+        if self.seedRunner is not None:
+          rt['seed']=self.seedRunner.getStatus()
+        return rt
       if url == 'layers':
         return {
           'status':'OK',
@@ -455,8 +338,7 @@ class Plugin:
         data=self._getRequestParam(args,'data')
         name=self._getRequestParam(args,'name')
         startSeed=self._getRequestParam(args,'startSeed',raiseMissing=False)
-        name=self.safeName(name)
-        outname=os.path.join(self.getSelectionDir(),name+".yaml")
+        outname=self._getSelectionFile(name)
         decoded=json.loads(data)
         with open(outname,"w") as oh:
           yaml.dump(decoded,oh)
@@ -465,33 +347,31 @@ class Plugin:
           caches=self.layer2caches.get(layerName)
           if caches is None:
             return {'status':'no caches found for layer %s'%layerName}
-          num=self.startSeed(outname,caches)
+          num=self._startSeed(outname, caches)
           return {'status':'OK','numTiles':num}
+        return {'status':'OK'}
+
+      if url == 'killSeed':
+        self.seedRunner.killRun()
         return {'status':'OK'}
 
       if url == 'countTiles':
         data=self._getRequestParam(args,'data')
         rt=seedCreator.countTiles(json.loads(data),self.api)
-        return {'status':'OK','numTiles':rt,'allowed':self.getConfigValue('maxTiles')}
+        return {'status':'OK','numTiles':rt,'allowed':self._getConfigValue('maxTiles')}
       if url == 'listSelections':
-        return {'status':'OK','data':self.listSelections()}
+        return {'status':'OK','data':self._listSelections()}
 
       if url == 'deleteSelection':
-        name = args.get('name')
-        if name is None or len(name) != 1:
-          return {'status': 'missing or invalid parameter name'}
-        name = self.safeName(name[0])
-        fname=os.path.join(self.getSelectionDir(),name+".yaml")
+        name = self._getRequestParam(args,'name')
+        fname=self._getSelectionFile(name)
         if os.path.exists(fname):
           os.unlink(fname)
         return {'status':'OK'}
 
       if url == 'loadSelection':
-        name = args.get('name')
-        if name is None or len(name) != 1:
-          return {'status': 'missing or invalid parameter name'}
-        name = self.safeName(name[0])
-        fname = os.path.join(self.getSelectionDir(), name+".yaml")
+        name = self._getRequestParam(args,'name')
+        fname = self._getSelectionFile(name)
         if not os.path.exists(fname):
           return {'status':'file %s not found'%fname}
         with open(fname,"r") as fh:
@@ -499,6 +379,8 @@ class Plugin:
         return {'status':'OK','data':data}
     except Exception as e:
       return {'status':str(e)}
+
+    #mapproxy requests
     if url.startswith(self.MPREFIX):
       if url.endswith('/avnav.xml'):
         path=url.replace('/avnav.xml','')
@@ -530,18 +412,8 @@ class Plugin:
         return True
       if url.endswith('sequence'):
         return {'status':'OK','sequence':self.sequence}
-      stderr=io.StringIO()
-      try:
-        shandler = OwnWsgiHandler(
-          handler.rfile, handler.wfile, stderr, self.getWsgiEnv(handler)
-        )
-        shandler.request_handler = handler  # backpointer for logging
-        shandler.log_request=handler.log_request
-        shandler.run(self.mapproxy)
-      finally:
-        errors=stderr.getvalue()
-        if len(errors) > 0:
-          self.api.error("request %s : %s",url,errors)
+      self.mapproxy.handleRequest(url,handler,args)
+      return
     return {'status','unknown request'}
 
 
