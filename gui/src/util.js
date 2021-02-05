@@ -69,4 +69,30 @@ export const safeName=(name)=>{
     return name.replace(/[^a-zA-Z0-9_.,-]/g,'');
 }
 
+export const showSelectOverlay=(list,title,current,overlayId)=>{
+    return new Promise((resolve, reject)=>{
+        if (! overlayId) overlayId='selectOverlay';
+        let parent=document.querySelector('#'+overlayId+' .overlayContent');
+        if (title){
+            let te=document.querySelector('#'+overlayId+' .overlayTitle');
+            if (te) te.textContent=title;
+        }
+        if (! parent) reject("element "+overlayId+" not found");
+        parent.innerHTML='';
+        for (let i in list){
+            let sel=list[i];
+            if (sel === current) continue;
+            let item=document.createElement('div');
+            item.classList.add('select');
+            item.addEventListener('click',()=>{
+                resolve(sel);
+                showHideOverlay(overlayId,false);
+            })
+            item.textContent=sel;
+            parent.appendChild(item);
+        }
+        showHideOverlay(overlayId,true);
+    })
+}
+
 

@@ -27,7 +27,7 @@ import 'leaflet-draw/dist/leaflet.draw.css';
 import L from 'leaflet';
 import 'leaflet-draw';
 import {getBoundsFromSelections, getIntersectionBounds, tileCountForBounds} from "./map";
-import {buttonEnable, safeName, showHideOverlay, forEach, setCloseOverlayActions} from "./util";
+import {buttonEnable, safeName, showHideOverlay, forEach, setCloseOverlayActions, showSelectOverlay} from "./util";
 (function(){
     let selectedLayer=undefined;
     let base=window.location.href.replace(/mapproxy\/gui.*/,'mapproxy');
@@ -175,25 +175,22 @@ import {buttonEnable, safeName, showHideOverlay, forEach, setCloseOverlayActions
     let loadSelection=()=>{
         apiRequest('listSelections')
             .then((data)=>{
-                let parent=document.querySelector('#selectOverlay .overlayContent');
-                if (! parent) return;
-                parent.innerHTML='';
-                let current='';
-                let ne=document.getElementById('selectionName');
-                if (ne) current=ne.value;
-                for (let i in data.data){
-                    let sel=data.data[i];
-                    //if (sel === current) continue;
-                    let item=document.createElement('div');
-                    item.classList.add('select');
-                    item.addEventListener('click',()=>{
-                        showSelection(sel);
-                        showHideOverlay('selectOverlay',false);
+                showSelectOverlay(data.data,"load selection")
+                    .then((selected)=>showSelection(selected))
+                    .catch(()=>{})
+            })
+            .catch((e)=>showError(e));
+    }
+    let deleteSelection=()=>{
+        apiRequest('listSelections')
+            .then((data)=>{
+                showSelectOverlay(data.data,"delete selection")
+                    .then((selected)=>{
+                        apiRequest('deleteSelection?name='+encodeURIComponent(selected))
+                            .then(()=>{})
+                            .catch((e)=>showError(e))
                     })
-                    item.textContent=sel;
-                    parent.appendChild(item);
-                }
-                showHideOverlay('selectOverlay',true);
+                    .catch(()=>{})
             })
             .catch((e)=>showError(e));
     }
@@ -223,6 +220,7 @@ import {buttonEnable, safeName, showHideOverlay, forEach, setCloseOverlayActions
     let buttonActions={
         save:()=>saveSelections(false),
         loadSelection: loadSelection,
+        deleteSelection:deleteSelection,
         startSeed: startSeed
     }
     let selectTab=function(id){
