@@ -32,7 +32,6 @@ import {
     setStateDisplay, setTextContent, apiRequest, showError, forEachEl
 } from "./util";
 (function(){
-    let selectedLayer=undefined;
     let base=window.location.href.replace(/mapproxy\/gui.*/,'mapproxy');
     let map=undefined;
     let flask;
@@ -101,7 +100,7 @@ import {
             encodeURIComponent(JSON.stringify(bounds))+
             "&name="+encodeURIComponent(name);
         if (seedFor){
-            url+="&startSeed="+encodeURIComponent(selectedLayer);
+            url+="&startSeed="+encodeURIComponent(map.getSelectedLayer());
         }
         apiRequest(base,url
         )
@@ -235,13 +234,15 @@ import {
             apiRequest(base,url)
                 .then(function (data) {
                     setStateDisplay('.networkState', data.network);
-                    let seedStatus=(data.seed || {}).status;
+                    let seed=data.seed || {};
+                    let seedStatus=seed.status;
                     setStateDisplay('.seedStatus',seedStatus)
                     buttonEnable('startSeed',seedStatus !== 'running' && canSave);
                     buttonEnable('killSeed',seedStatus === 'running');
-                    buttonEnable('showLog',(data.seed||{}).logFile);
-                    let name=(data.seed || {}).name||'';
+                    buttonEnable('showLog',seed.logFile);
+                    let name=seed.name||'';
                     if (name instanceof Array) name=name.join(',');
+                    name=(seed.selection||'')+' '+name;
                     setTextContent('.seedInfo',name+" "+(data.seed || {}).info)
                     forEachEl('#stopSeed',(el)=>{
                         el.style.display=(seedStatus === 'running')?'inline-block':'none'

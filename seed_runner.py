@@ -56,6 +56,7 @@ class SeedRunner(object):
     self.logHandler=logHandler
     self.currentLog=None
     self.seedName=None
+    self.selectionName=None
 
   def logDebug(self,fmt,*args):
     if (self.logHandler):
@@ -144,10 +145,11 @@ class SeedRunner(object):
         pass
       return False
     return self._startSeed()
-  def runSeed(self,seedConfig,name=None):
+  def runSeed(self,seedConfig,name=None,selectionName=None):
     if self.checkRunning():
       raise OtherRunningException()
     self.seedName=name
+    self.selectionName=selectionName
     self._startSeed(seedConfig)
 
   def killRun(self):
@@ -207,6 +209,7 @@ class SeedRunner(object):
       'status':self.seedStatus,
       'info':self.info,
       'name':self.seedName,
+      'selection': self.selectionName,
       'logFile':os.path.basename(self.currentLog) if self.currentLog is not None else None
     }
 

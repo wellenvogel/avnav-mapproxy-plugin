@@ -140,7 +140,7 @@ class Box(object):
     netile=deg2num(self.northeast.lat,self.northeast.lng,self.zoom)
     swtile=deg2num(self.southwest.lat,self.southwest.lng,self.zoom)
     xdiff=abs(netile[0]-swtile[0])+1
-    ydiff=abs(netile[1]-netile[1])+1
+    ydiff=abs(netile[1]-swtile[1])+1
     return xdiff*ydiff
 
 yaml.add_representer(Box,Box.representYaml,Dumper=yaml.dumper.SafeDumper)

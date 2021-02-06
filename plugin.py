@@ -151,6 +151,7 @@ class Plugin:
     self.layer2caches={}
     self.queryPeriod=5
     self.seedRunner=None
+    self.maxTiles=100000
 
 
 
@@ -255,6 +256,7 @@ class Plugin:
             return
           self.api.log('creating config file %s from template %s',outname,src)
           shutil.copyfile(src,outname)
+      self.maxTiles=int(self._getConfigValue('maxTiles'))
       self.mapproxy=mapproxyWrapper.MapProxyWrapper(self.api.getBaseUrl()+"/api/"+self.MPREFIX,
                                                 os.path.join(self.dataDir,self.USER_CONFIG),
                                                 self.api)
@@ -310,12 +312,6 @@ class Plugin:
       if internals.get('path') == path:
         return ce
 
-
-  def _startSeed(self, selectionName, cacheName):
-    name="seed-"+datetime.now().strftime('%Y%m%d-%H%M%s')
-    (numTiles,seeds)=seedCreator.createSeed(selectionName, name, cacheName,  logger=self.api)
-    self.seedRunner.runSeed(seeds,cacheName)
-    return numTiles
   def _getSelectionFile(self,name):
     name=self._safeName(name)
     return os.path.join(self._getDataDir(self.WD_SELECTIONS),name+".yaml")
@@ -361,8 +357,12 @@ class Plugin:
           caches=self.layer2caches.get(layerName)
           if caches is None:
             return {'status':'no caches found for layer %s'%layerName}
-          num=self._startSeed(outname, caches)
-          return {'status':'OK','numTiles':num}
+          seedName = "seed-" + datetime.now().strftime('%Y%m%d-%H%M%s')
+          (numTiles, seeds) = seedCreator.createSeed(outname, seedName, caches, logger=self.api)
+          if numTiles > self.maxTiles:
+            return {'status':'number of tiles %d larger then allowed %s'%(numTiles,self.maxTiles)}
+          self.seedRunner.runSeed(seeds, caches,selectionName=self._safeName(name))
+          return {'status':'OK','numTiles':numTiles}
         return {'status':'OK'}
 
       if url == 'killSeed':
