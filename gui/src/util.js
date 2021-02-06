@@ -117,6 +117,7 @@ export const setStateDisplay=(query,stateClass)=>{
 export const setTextContent=(query,value)=>{
 
     forEachEl(query,(el)=>{
+        if (value === undefined) value='';
         if (el.tagName === 'INPUT') el.value=value;
         else el.textContent=value;
     })
@@ -132,7 +133,7 @@ export const apiRequest=function(base,command){
             .then(function(data){
                 if (! data.status || data.status !== 'OK'){
                     reject("status: "+data.status);
-                    retturn;
+                    return;
                 }
                 resolve(data);
                 return;
@@ -142,6 +143,16 @@ export const apiRequest=function(base,command){
             });
     });
 }
-export const showError=function(error){
+export const showError=(error)=>{
     alert(error);
+}
+export const getDateString=(d)=>{
+    if (! d) d=new Date();
+    let m=d.getMonth()+1;
+    if (m <10) m="0"+m;
+    else m=""+m;
+    let day=d.getDate();
+    if (day < 10) day="0"+day;
+    else day=""+day;
+    return d.getFullYear()+"-"+m+"-"+day;
 }

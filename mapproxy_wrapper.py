@@ -117,6 +117,7 @@ class MapProxyWrapper(object):
     self.logger.log("creating mapproxy wsgi app with config %s", self.configFile)
     try:
       self.mapproxy = make_wsgi_app(self.configFile, ignore_config_warnings=False, reloader=False)
+      self.getFatalError(True)
       self._readMappings()
     except Exception as e:
       self.layerMappings={}
@@ -136,9 +137,17 @@ class MapProxyWrapper(object):
     return self.handler.getFatalError(reset)
 
   def getStatus(self):
+    status='unknown'
+    error=self.getFatalError(False)
+    if self.mapproxy is not None:
+      status='ok'
+      error=None
+    elif error is not None:
+      status='error'
     return {
       'running': self.mapproxy is not None,
-      'lastError': self.getFatalError()
+      'status': status,
+      'lastError': error
     }
   def getMaps(self):
     rt=[]
@@ -182,6 +191,7 @@ class MapProxyWrapper(object):
 
   def getMappings(self):
     return self.layerMappings
+
 
   def _readMappings(self,raiseError=False):
     from mapproxy.config.loader import load_configuration_file

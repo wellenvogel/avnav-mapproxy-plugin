@@ -22,65 +22,55 @@
 ###############################################################################
 */
 import '../style/index.less';
+import '../lib/codeflask.css';
 import SeedMap from "./map";
+import Prismjs from 'prismjs';
+import CodeFlask from "codeflask";
+import yaml from 'js-yaml';
+import FileDownload from 'js-file-download';
 import {
     buttonEnable,
     safeName,
     showHideOverlay,
     setCloseOverlayActions,
     showSelectOverlay,
-    setStateDisplay, setTextContent, apiRequest, showError, forEachEl
+    setStateDisplay, setTextContent, apiRequest, showError, forEachEl, getDateString
 } from "./util";
 (function(){
+    let activeTab=undefined;
     let base=window.location.href.replace(/mapproxy\/gui.*/,'mapproxy');
     let map=undefined;
     let flask;
     let ignoreNextChanged=false;
+    let lastSequence=undefined;
     let codeChanged=function(changed){
         buttonEnable('saveEditOverlay',changed && ! ignoreNextChanged);
         ignoreNextChanged=false;
     }
-    let showEdit=function(){
-        showHideOverlay('editOverlay',true);
-        fetch(base+'/api/getConfig')
-        .then(function(resp){
-            return resp.text();
-        })
-        .then(function(text){
-            if (flask) flask.updateCode(text);
-            codeChanged(false);
-            ignoreNextChanged=true;
-        })
-        .catch(function(error){
-            showError(error);
-        })
-    }
-
-    let saveConfig=function(){
+    let getAndCheckConfig=()=>{
         if (! flask) return;
         let data=flask.getCode();
+        let o;
         try{
-            //validate data
+            o=yaml.load(data,{schema:yaml.JSON_SCHEMA});
         }catch(e){
-            showError("internal error: "+e);
+            showError("yaml error: "+e);
             return;
         }
-        if (confirm("Really overwrite config")){
-            fetch(base+'/api/uploadConfig',{
-                method: 'POST',
-                headers:{
-                    'Content-Type':'text/plain'
-                },
-                body: data
-            })
-            .then(function(resp){
-                return resp.json();
-            })
-            .then(function(result){
-                if (! result.status || result.status !== 'OK'){
-                    showError(result.status);
-                    return;
-                }
+        return data
+    }
+    let downloadConfig=(filename)=>{
+        if (! filename) filename="avnav_user"+getDateString()+".yaml";
+        let data=getAndCheckConfig();
+        if (! data) return;
+        FileDownload(data,filename);
+    }
+    let saveConfig=function(){
+        let data=getAndCheckConfig();
+        if (! data) return;
+        if (confirm("Really overwrite config?")){
+            apiRequest(base,'saveConfig?data='+encodeURIComponent(data))
+            .then((result)=>{
                 showHideOverlay('editOverlay',false);
             })
             .catch(function(error){
@@ -165,7 +155,21 @@ import {
             })
             .catch((e)=>showError(e))
     }
+    let editConfig=()=>{
+        apiRequest(base,'loadConfig')
+            .then((data)=>{
+                if (flask) flask.updateCode(data.data);
+                codeChanged(false);
+                ignoreNextChanged=true;
+                showHideOverlay('editOverlay',true);
+            })
+            .catch((e)=>showError(e));
+    }
     let buttonActions={
+        checkEditOverlay: getAndCheckConfig,
+        downloadEditOverlay: ()=>downloadConfig(),
+        saveEditOverlay: saveConfig,
+        editConfig:editConfig,
         showLog: showLog,
         reloadLog: showLog,
         killSeed: stopSeed,
@@ -174,6 +178,35 @@ import {
         loadSelection: loadSelection,
         deleteSelection:deleteSelection,
         startSeed: startSeed
+    }
+    let updateLayers=()=>{
+        if (activeTab === 'downloadtab') map.loadLayers('layerFrame');
+        else {
+            if (activeTab === 'statustab') {
+                setTextContent('#statusLayers','');
+                let parent=document.getElementById('statusLayers');
+                if (! parent) return;
+                apiRequest(base, 'layers')
+                    .then((data) => {
+                        if (! data.data) return;
+                        for (let i in data.data){
+                            let layer=data.data[i];
+                            let lf=document.createElement('div');
+                            lf.classList.add('layerInfo');
+                            let ln=document.createElement('span');
+                            ln.classList.add('label');
+                            ln.textContent='Layer:'
+                            lf.appendChild(ln);
+                            ln=document.createElement('span');
+                            ln.classList.add('value');
+                            ln.textContent=layer.name;
+                            lf.appendChild(ln);
+                            parent.appendChild(lf);
+                        }
+                    })
+                    .catch((e) => showError(e));
+            }
+        }
     }
 
     let selectTab=function(id){
@@ -191,7 +224,8 @@ import {
         forEachEl('#'+id,(tab)=>{
             tab.classList.add('active');
         })
-        if (id === 'downloadtab') map.loadLayers('layerFrame');
+        activeTab=id;
+        updateLayers();
     }
     window.addEventListener('load',function(){
         let title=document.getElementById('title');
@@ -218,15 +252,16 @@ import {
             });
         setCloseOverlayActions();
         flask=new CodeFlask('#editOverlay .overlayContent',{
-            language: 'markup',
+            language: 'yaml',
             lineNumbers: true,
             defaultTheme: false
         });
+        flask.addLanguage('yaml',Prismjs.languages['yaml']);
         flask.onUpdate(function(){codeChanged(true)});
         let networkState=document.getElementById('networkStatus');
         let selName=document.getElementById('selectionName');
         let d=new Date()
-        if (selName) selName.value="selection-"+d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate();
+        if (selName) selName.value="selection-"+getDateString();
         let first=true;
         this.window.setInterval(function () {
             let canSave = map && map.hasDrawnItems();
@@ -236,7 +271,13 @@ import {
                     setStateDisplay('.networkState', data.network);
                     let seed=data.seed || {};
                     let seedStatus=seed.status;
-                    setStateDisplay('.seedStatus',seedStatus)
+                    let mapproxy=data.mapproxy||{};
+                    setStateDisplay('.seedStatus',seedStatus);
+                    setStateDisplay('.proxyStatus',mapproxy.status);
+                    setTextContent('.proxySequence', (! mapproxy.lastError)?
+                        "sequence "+parseInt(data.sequence):'');
+                    setTextContent('.proxyError',mapproxy.lastError);
+
                     buttonEnable('startSeed',seedStatus !== 'running' && canSave);
                     buttonEnable('killSeed',seedStatus === 'running');
                     buttonEnable('showLog',seed.logFile);
@@ -247,13 +288,16 @@ import {
                     forEachEl('#stopSeed',(el)=>{
                         el.style.display=(seedStatus === 'running')?'inline-block':'none'
                     })
+                    if (data.sequence !== lastSequence){
+                        if (lastSequence !== undefined) updateLayers();
+                        lastSequence=data.sequence;
+                    }
                 })
                 .catch(function (error) {
                     console.log(error);
                 })
         }, 1000);
         map=new SeedMap('map',base);
-        map.loadLayers('layerFrame');
         selectTab('statustab');
     })
 })();

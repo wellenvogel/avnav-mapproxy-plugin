@@ -281,10 +281,11 @@ class Plugin:
     configFile = os.path.join(self.dataDir, self.USER_CONFIG)
     self.api.setStatus("INACTIVE","starting with config file %s"%configFile)
     while True:
+      incrementSequence=False
       try:
         rt=self.mapproxy.createProxy(True)
         if rt:
-          self.sequence+=1
+          incrementSequence=True
         self.api.setStatus('NMEA','mapproxy created with config file %s'%configFile)
       except Exception as e:
         self.api.setStatus('ERROR','unable to create mapproxy with config %s: %s'%
@@ -302,6 +303,8 @@ class Plugin:
         self.layer2caches=self.mapproxy.getMappings()
       except Exception as e:
         self.api.debug("error in main loop reading config: %s",traceback.format_exc())
+      if incrementSequence:
+        self.sequence += 1
       time.sleep(self.queryPeriod)
 
   def _findChartEntry(self,path):
@@ -391,6 +394,37 @@ class Plugin:
         with open(fname,"r") as fh:
           data=yaml.safe_load(fh)
         return {'status':'OK','data':data}
+
+      if url == 'loadConfig':
+        fname=os.path.join(self.dataDir,self.USER_CONFIG)
+        if not os.path.exists(fname):
+          return {'status':'config file %s not found'%fname}
+        with open(fname,"r") as fh:
+          data=fh.read()
+        return {'status':'OK','data':data}
+
+      if url == 'saveConfig':
+        data = self._getRequestParam(args, 'data')
+        try:
+          yaml.safe_load(data)
+        except Exception as e:
+          return {'status':'invalid yaml: %s'%str(e)}
+        #TODO: semantic check
+        outname=os.path.join(self.dataDir,self.USER_CONFIG)
+        tmpname=outname+".tmp%s"%str(time.time())
+        with open(tmpname,"w") as oh:
+          oh.write(data)
+          oh.close()
+        try:
+          os.replace(tmpname,outname)
+        except Exception as e:
+          try:
+            os.unlink(tmpname)
+          except:
+            pass
+          return {'status':'unable to write %s: %s'%(outname,str(e))}
+        #TODO: trigger immediate reload
+        return {'status':'OK'}
     except Exception as e:
       return {'status':str(e)}
     if url == 'getLog':

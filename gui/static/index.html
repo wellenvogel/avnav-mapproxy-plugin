@@ -7,10 +7,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="AvNavUpdate">
     <link rel="stylesheet" href="main.css">
-    <link rel="stylesheet" href="lib/codeflask.css">
     <script type="text/javascript" src="bundle.js"></script>
-    <script type="text/javascript" src="lib/codeflask.min.js"></script>
-
     <title>AvNavMapproxy</title>
 </head>
 <body>
@@ -31,10 +28,20 @@
                 <span class="statusText networkState unknown"></span>
             </div>
             <div class="state">
+                <span class="label">MapProxy</span>
+                <span class="proxyStatus statusText unknown"></span>
+                <button id="editConfig">Config</button>
+                <span class="value proxySequence"></span>
+                <span class="value proxyError"></span>
+            </div>
+            <div class="state">
                 <span class="label">Seed</span>
                 <span class="seedStatus statusText unknown"></span>
                 <button id="stopSeed" >Kill</button>
                 <span class="value seedInfo"></span>
+            </div>
+            <div class="state" id="statusLayers">
+
             </div>
         </div>
     </div>
@@ -73,12 +80,16 @@
                 </div>
             </div>
             <div class="buttonFrame frame">
-                <button id="loadSelection">Load</button>
-                <button id="deleteSelection">Delete</button>
-                <button id="save" >Save</button>
-                <button id="startSeed" >Start</button>
-                <button id="showLog">Log</button>
-                <button id="killSeed">Kill</button>
+                <div class="buttonCol">
+                    <button id="loadSelection">Load</button>
+                    <button id="save" >Save</button>
+                    <button id="deleteSelection">Delete</button>
+                </div>
+                <div class="buttonCol">
+                    <button id="startSeed" >Start</button>
+                    <button id="showLog">Log</button>
+                    <button id="killSeed">Kill</button>
+                </div>
             </div>
         </div>
     </div>
@@ -89,6 +100,7 @@
 
         </div>
         <div class="overlayButtons">
+            <button id="checkEditOverlay">Check</button>
             <button id="downloadEditOverlay">Download</button>
             <button class="closeOverlay">Cancel</button>
             <button id="saveEditOverlay">Save</button>

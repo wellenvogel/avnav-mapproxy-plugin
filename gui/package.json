@@ -21,6 +21,7 @@
     "@babel/core": "^7.12.10",
     "@babel/preset-env": "^7.12.10",
     "babel-loader": "^8.2.2",
+    "babel-plugin-prismjs": "^2.0.1",
     "copy-webpack-plugin": "^7.0.0",
     "css-loader": "^5.0.1",
     "file-loader": "^6.2.0",
@@ -34,7 +35,11 @@
     "webpack-merge": "^5.7.0"
   },
   "dependencies": {
+    "codeflask": "^1.4.1",
+    "js-file-download": "^0.4.12",
+    "js-yaml": "^4.0.0",
     "leaflet": "^1.7.1",
-    "leaflet-draw": "^1.0.4"
+    "leaflet-draw": "^1.0.4",
+    "prismjs": "^1.23.0"
   }
 }
