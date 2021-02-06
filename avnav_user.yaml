@@ -87,5 +87,5 @@ sources:
 
   s_openseamap:
     type: tile
-    grid: osm_grid
+    grid: osm_grid_xyz
     url:  http://t1.openseamap.org/seamark/%(z)s/%(x)s/%(y)s.png
