@@ -22,56 +22,24 @@
 ###############################################################################
 */
 import '../style/index.less';
-import 'leaflet/dist/leaflet.css';
-import 'leaflet-draw/dist/leaflet.draw.css';
-import L from 'leaflet';
-import 'leaflet-draw';
-import {getBoundsFromSelections, getIntersectionBounds, tileCountForBounds} from "./map";
+import SeedMap from "./map";
 import {
     buttonEnable,
     safeName,
     showHideOverlay,
-    forEach,
     setCloseOverlayActions,
     showSelectOverlay,
-    setStateDisplay, setTextContent
+    setStateDisplay, setTextContent, apiRequest, showError, forEachEl
 } from "./util";
 (function(){
     let selectedLayer=undefined;
     let base=window.location.href.replace(/mapproxy\/gui.*/,'mapproxy');
     let map=undefined;
-    let drawnItems = undefined;
     let flask;
-    let apiRequest=function(command){
-        let url=base+"/api/"+command;
-        return new Promise(function(resolve,reject){
-            fetch(url)
-            .then(function(r){
-                return r.json();
-            })
-            .then(function(data){
-                if (! data.status || data.status !== 'OK'){
-                    reject("status: "+data.status);
-                    retturn;
-                }
-                resolve(data);
-                return;
-            })
-            .catch(function(error){
-                reject(error);
-            });
-        });
-    }
-
-
-
     let ignoreNextChanged=false;
     let codeChanged=function(changed){
         buttonEnable('saveEditOverlay',changed && ! ignoreNextChanged);
         ignoreNextChanged=false;
-    }
-    let showError=function(error){
-        alert(error);
     }
     let showEdit=function(){
         showHideOverlay('editOverlay',true);
@@ -127,25 +95,7 @@ import {
         let name="default";
         let ne=document.getElementById('selectionName');
         if (ne) name=ne.value;
-        let bounds=getBoundsFromSelections(drawnItems);
-        let numTiles=0;
-        let z=map.getZoom();
-        let alreadyCounted=[];
-        //tile counting - only for mode current zoom
-        bounds.forEach(function(bound){
-            let maxTiles=tileCountForBounds(map,bound,z);
-            //subtract intersections
-            alreadyCounted.forEach(function(other){
-                let intersect=getIntersectionBounds(bound,other);
-                if (intersect){
-                    let intersectNum=tileCountForBounds(map,intersect,z);
-                    maxTiles-=intersectNum;
-                    if (maxTiles < 0) maxTiles=0; //hmmm
-                }
-            })
-            numTiles+=maxTiles;
-            alreadyCounted.push(bound);
-        })
+        let bounds=map.getSelectionBounds();
         name=safeName(name);
         let url="saveSelection?data="+
             encodeURIComponent(JSON.stringify(bounds))+
@@ -153,7 +103,7 @@ import {
         if (seedFor){
             url+="&startSeed="+encodeURIComponent(selectedLayer);
         }
-        apiRequest(url
+        apiRequest(base,url
         )
         .then((res)=>{
             showHideOverlay('spinnerOverlay',false);
@@ -171,22 +121,15 @@ import {
         saveSelections(true);
     }
     let showSelection=(name)=>{
-        apiRequest('loadSelection?name='+encodeURIComponent(name))
+        apiRequest(base,'loadSelection?name='+encodeURIComponent(name))
             .then((data)=>{
-                let ne=document.getElementById('selectionName');
-                if (ne) ne.value=name;
-                drawnItems.clearLayers();
-                for (let i in data.data){
-                    let box=data.data[i];
-                    let rect=L.rectangle([L.latLng(box._southWest),L.latLng(box._northEast)]);
-                    drawnItems.addLayer(rect);
-                }
-                updateTileCount();
+                setTextContent('#selectionName',name);
+                map.setSelections(data.data);
             })
             .catch((e)=>showError(e));
     };
     let loadSelection=()=>{
-        apiRequest('listSelections')
+        apiRequest(base,'listSelections')
             .then((data)=>{
                 showSelectOverlay(data.data,"load selection")
                     .then((selected)=>showSelection(selected))
@@ -195,11 +138,11 @@ import {
             .catch((e)=>showError(e));
     }
     let deleteSelection=()=>{
-        apiRequest('listSelections')
+        apiRequest(base,'listSelections')
             .then((data)=>{
                 showSelectOverlay(data.data,"delete selection")
                     .then((selected)=>{
-                        apiRequest('deleteSelection?name='+encodeURIComponent(selected))
+                        apiRequest(base,'deleteSelection?name='+encodeURIComponent(selected))
                             .then(()=>{})
                             .catch((e)=>showError(e))
                     })
@@ -207,29 +150,8 @@ import {
             })
             .catch((e)=>showError(e));
     }
-    let updateTileCount=()=>{
-        let te=document.getElementById('numTiles');
-        if (! te) return;
-        te.classList.add('blink');
-        let bounds=getBoundsFromSelections(drawnItems);
-        apiRequest('countTiles?data='+encodeURIComponent(JSON.stringify(bounds)))
-            .then((resp)=>{
-                te.classList.remove('blink');
-                if (resp.numTiles > resp.allowed){
-                    te.classList.add('textError')
-                }
-                else{
-                    te.classList.remove('textError');
-                }
-                te.textContent=resp.numTiles;
-            })
-            .catch((e)=>showError(e));
-    }
-    let updateZoom=()=>{
-        setTextContent('#currentZoom',map.getZoom());
-    }
     let stopSeed=()=>{
-        apiRequest('killSeed')
+        apiRequest(base,'killSeed')
             .then(()=>{})
             .catch((e)=>showError(e));
     }
@@ -256,10 +178,10 @@ import {
     }
 
     let selectTab=function(id){
-        forEach(document.querySelectorAll('.tab'),function(i,tab){
+        forEachEl('.tab',(tab)=>{
             tab.classList.remove('active');
         })
-        forEach(document.querySelectorAll('.tabSelect .selector'),function(i,tab){
+        forEachEl('.tabSelect .selector',(tab)=>{
             if (tab.getAttribute('data-tabid') === id){
                 tab.classList.add('active');
             }
@@ -267,10 +189,10 @@ import {
                 tab.classList.remove('active');
             }
         })
-        forEach(document.querySelectorAll('#'+id),function(i,tab){
+        forEachEl('#'+id,(tab)=>{
             tab.classList.add('active');
         })
-        map.invalidateSize();
+        if (id === 'downloadtab') map.loadLayers('layerFrame');
     }
     window.addEventListener('load',function(){
         let title=document.getElementById('title');
@@ -281,16 +203,14 @@ import {
         if (demo) {
             demo.setAttribute('src',base+"/api/mapproxy/demo/");
         }
-        forEach(document.querySelectorAll('button'),
-            function(i,bt) {
+        forEachEl('button',(bt)=> {
                 let handler = buttonActions[bt.getAttribute('id')] ||
                     buttonActions[bt.getAttribute('name')];
                 if (handler) {
                     bt.addEventListener('click', handler);
                 }
             });
-        forEach(document.querySelectorAll('.tabSelect .selector'),
-            function (i,sel){
+        forEachEl('.tabSelect .selector',(sel)=>{
                 sel.addEventListener('click',function(ev){
                     ev.preventDefault();
                     let id=ev.target.getAttribute('data-tabid');
@@ -307,12 +227,12 @@ import {
         let networkState=document.getElementById('networkStatus');
         let selName=document.getElementById('selectionName');
         let d=new Date()
-        if (selName) selName.value="selection-"+d.getFullYear()+"-"+d.getMonth()+"-"+d.getDate();
+        if (selName) selName.value="selection-"+d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate();
         let first=true;
         this.window.setInterval(function () {
-            let canSave = drawnItems.getLayers().length > 0;
+            let canSave = map && map.hasDrawnItems();
             let url = 'status';
-            apiRequest(url)
+            apiRequest(base,url)
                 .then(function (data) {
                     setStateDisplay('.networkState', data.network);
                     let seedStatus=(data.seed || {}).status;
@@ -323,7 +243,7 @@ import {
                     let name=(data.seed || {}).name||'';
                     if (name instanceof Array) name=name.join(',');
                     setTextContent('.seedInfo',name+" "+(data.seed || {}).info)
-                    forEach(document.querySelectorAll('#stopSeed'),(i,el)=>{
+                    forEachEl('#stopSeed',(el)=>{
                         el.style.display=(seedStatus === 'running')?'inline-block':'none'
                     })
                 })
@@ -331,98 +251,8 @@ import {
                     console.log(error);
                 })
         }, 1000);
-        map=L.map('map').setView([54,13],6);
-        drawnItems=new L.FeatureGroup();
-        map.addLayer(drawnItems);
-        updateZoom();
-
-        let drawControl = new L.Control.Draw({
-            position: 'topright',
-            draw: {
-                polyline: false,
-                polygon: false,
-                circle: false,
-                circlemarker: false,
-                marker: false,
-                rectangle: {
-                    shapeOptions: {
-                        clickable: true
-                    }
-                }
-            },
-            edit: {
-                featureGroup: drawnItems,
-                remove: true
-            }
-        });
-        map.addControl(drawControl);
-        map.on(L.Draw.Event.CREATED, function (e) {
-            let layer = e.layer;
-            drawnItems.addLayer(layer);
-            updateTileCount();
-        });
-        map.on(L.Draw.Event.DELETED,updateTileCount);
-        map.on(L.Draw.Event.EDITED,updateTileCount);
-        map.on('zoomend',updateZoom)
-        let layers={};
-        apiRequest('layers')
-            .then(function(resp){
-                if (resp && resp.data && resp.data.base){
-                    let cfg=resp.data.base;
-                    let name=cfg.name;
-                    let url=cfg.url;
-                    let layer = L.tileLayer(url+'/{z}/{x}/{y}.png',{
-                        });
-                    layer.addTo(map);
-                }
-                if (resp && resp.data){
-                    let layerList=document.getElementById('layerFrame');
-                    if (layerList){
-                        layerList.innerText='';
-                        let first=true;
-                        for (let lname in resp.data) {
-                            if (lname === 'base') continue;
-                            let lconfig = resp.data[lname];
-                            let item = document.createElement('div');
-                            item.classList.add('layerSelect');
-                            let rb = document.createElement('input');
-                            rb.setAttribute('type', 'radio');
-                            rb.setAttribute('name', 'layer');
-                            if (first) {
-                                rb.checked = true;
-                                selectedLayer=lname;
-                            }
-                            let layer=L.tileLayer(lconfig.url+'/{z}/{x}/{y}.png');
-                            layers[lname]=layer;
-                            if (first) map.addLayer(layer);
-                            rb.setAttribute('value',lname);
-                            rb.addEventListener('change',function(){
-                                forEach(layerList.querySelectorAll('input[type="radio"]'),
-                                    function(idx,el){
-                                    let layer=layers[el.getAttribute('value')];
-                                    if (layer) {
-                                        if (el.checked) {
-                                            map.addLayer(layer);
-                                            selectedLayer=el.getAttribute('value');
-                                        }
-                                        else map.removeLayer(layer);
-                                    }
-                                    })
-                                map.invalidateSize();
-                            });
-                            first=false;
-                            item.appendChild(rb);
-                            let label = document.createElement('span');
-                            label.innerText = lconfig.name;
-                            item.appendChild(label);
-                            layerList.appendChild(item);
-                        }
-                    }
-                }
-            })
-            .catch(function(error){
-                showError(error);
-            })
+        map=new SeedMap('map',base);
+        map.loadLayers('layerFrame');
         selectTab('statustab');
     })
 })();

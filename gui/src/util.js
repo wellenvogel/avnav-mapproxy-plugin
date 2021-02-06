@@ -21,11 +21,17 @@
 #  DEALINGS IN THE SOFTWARE.
 ###############################################################################
 */
-export const forEach = function (array, callback, scope) {
+export const forEach = function (array, callback) {
     for (let i = 0; i < array.length; i++) {
-        callback.call(scope, i, array[i]); // passes back stuff we need
+        callback(array[i]);
     }
 };
+export const forEachEl=(selector,cb)=>{
+    let arr=document.querySelectorAll(selector);
+    for (let i=0;i<arr.length;i++){
+        cb(arr[i]);
+    }
+}
 export const showHideOverlay=(id,show)=>{
     let ovl=id;
     if (typeof(id) === 'string'){
@@ -46,7 +52,7 @@ export const closeOverlayFromButton=(btEvent)=>{
     }
 }
 export const setCloseOverlayActions=()=>{
-    forEach(document.querySelectorAll('button.closeOverlay'),(i,bt)=>{
+    forEachEl('button.closeOverlay',(bt)=>{
         bt.addEventListener('click',(ev)=>closeOverlayFromButton(ev));
     })
 }
@@ -74,8 +80,7 @@ export const showSelectOverlay=(list,title,current,overlayId)=>{
         if (! overlayId) overlayId='selectOverlay';
         let parent=document.querySelector('#'+overlayId+' .overlayContent');
         if (title){
-            let te=document.querySelector('#'+overlayId+' .overlayTitle');
-            if (te) te.textContent=title;
+            setTextContent('#'+overlayId+' .overlayTitle',title);
         }
         if (! parent) reject("element "+overlayId+" not found");
         parent.innerHTML='';
@@ -98,7 +103,7 @@ export const showSelectOverlay=(list,title,current,overlayId)=>{
 export const STATECLASSES=['unknown','error','ok','running'];
 export const setStateDisplay=(query,stateClass)=>{
     if (STATECLASSES.indexOf(stateClass) < 0) stateClass='unknown';
-    forEach(document.querySelectorAll(query),(i,el)=>{
+    forEachEl(query,(el)=>{
         STATECLASSES.forEach(function(state){
             if (state !== stateClass){
                 el.classList.remove(state);
@@ -111,11 +116,32 @@ export const setStateDisplay=(query,stateClass)=>{
 }
 export const setTextContent=(query,value)=>{
 
-    forEach(document.querySelectorAll(query),(i,el)=>{
+    forEachEl(query,(el)=>{
         if (el.tagName === 'INPUT') el.value=value;
         else el.textContent=value;
     })
 }
 
-
-
+export const apiRequest=function(base,command){
+    let url=base+"/api/"+command;
+    return new Promise(function(resolve,reject){
+        fetch(url)
+            .then(function(r){
+                return r.json();
+            })
+            .then(function(data){
+                if (! data.status || data.status !== 'OK'){
+                    reject("status: "+data.status);
+                    retturn;
+                }
+                resolve(data);
+                return;
+            })
+            .catch(function(error){
+                reject(error);
+            });
+    });
+}
+export const showError=function(error){
+    alert(error);
+}
