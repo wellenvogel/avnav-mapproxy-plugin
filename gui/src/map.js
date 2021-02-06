@@ -117,11 +117,12 @@ const getBoxStyle=(zoom)=>{
 }
 
 export default class SeedMap{
-    constructor(mapdiv,apiBase) {
+    constructor(mapdiv,apiBase,showBoxes) {
         this.updateZoom=this.updateZoom.bind(this);
         this.updateTileCount=this.updateTileCount.bind(this);
         this.mapdiv=mapdiv;
         this.apiBase=apiBase;
+        this.showBoxes=showBoxes;
         this.map=L.map('map').setView([54,13],6);
         this.drawnItems=new L.FeatureGroup();
         this.boxesLayer=new L.FeatureGroup();
@@ -180,6 +181,11 @@ export default class SeedMap{
         })
         this.map.on('moveend',()=>this.getBoxes());
         this.map.on('loadend',()=>this.getBoxes())
+    }
+    setShowBoxes(on){
+        let old=this.showBoxes;
+        this.showBoxes=on;
+        if (old !== on) this.getBoxes();
     }
     getSelectedLayer(){
         return this.selectedLayer;
@@ -309,6 +315,10 @@ export default class SeedMap{
     }
 
     getBoxes(){
+        if (! this.showBoxes){
+            this.boxesLayer.clearLayers();
+            return;
+        }
         let bound=this.map.getBounds();
         let url=this.apiBase+"/api/getBoxes?nelat="+encodeURIComponent(bound.getNorthEast().lat)+
             "&nelng="+encodeURIComponent(bound.getNorthEast().lng)+

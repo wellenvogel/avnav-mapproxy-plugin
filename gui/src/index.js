@@ -34,7 +34,7 @@ import {
     showHideOverlay,
     setCloseOverlayActions,
     showSelectOverlay,
-    setStateDisplay, setTextContent, apiRequest, showError, forEachEl, getDateString
+    setStateDisplay, setTextContent, apiRequest, showError, forEachEl, getDateString, showToast
 } from "./util";
 (function(){
     let activeTab=undefined;
@@ -180,7 +180,13 @@ import {
         startSeed: startSeed
     }
     let updateLayers=()=>{
-        if (activeTab === 'downloadtab') map.loadLayers('layerFrame');
+        if (activeTab === 'downloadtab') {
+            map.loadLayers('layerFrame');
+            let sb=document.getElementById('showBoxes');
+            if (sb){
+                map.setShowBoxes(sb.checked);
+            }
+        }
         else {
             if (activeTab === 'statustab') {
                 setTextContent('#statusLayers','');
@@ -239,6 +245,12 @@ import {
         let demo=document.getElementById('demoFrame');
         if (demo) {
             demo.setAttribute('src',base+"/api/mapproxy/demo/");
+        }
+        let sb=document.getElementById('showBoxes');
+        if (sb){
+            sb.addEventListener('change',(ev)=>{
+               map.setShowBoxes(ev.target.checked);
+            });
         }
         forEachEl('button',(bt)=> {
                 let handler = buttonActions[bt.getAttribute('id')] ||
