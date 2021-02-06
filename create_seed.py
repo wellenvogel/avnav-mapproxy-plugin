@@ -153,6 +153,38 @@ class Boxes(LogEnabled):
     self.merges=[]
     self.numTiles=0
 
+  def getBoxes(self,nelat,nelng,swlat,swlng,minZoom=None,maxZoom=None):
+    rt=[]
+    if minZoom is None:
+      minZoom=0
+    else:
+      minZoom=int(minZoom)
+    if maxZoom is None:
+      maxZoom=22
+    else:
+      maxZoom=int(maxZoom)
+    #we duplicate some code here as we want to be fast and do not create
+    #objects
+    #and we directly return the lines as this most probably is much faster
+    #and we return them as bytes to avoid any encode/decode
+    with open(self.boxesFile,'rb') as fh:
+      for bline in fh:
+        parts = re.split(b'  *', bline.rstrip())
+        if len(parts) != 6:
+          continue
+        z=int(parts[1])
+        if z < minZoom or z > maxZoom:
+          continue
+        bnelat=float(parts[4])
+        bnelng=float(parts[5])
+        bswlat=float(parts[2])
+        bswlng=float(parts[3])
+        if bnelat < swlat or bnelng < swlng \
+            or bswlat > nelat or bswlng > nelng:
+          continue
+        rt.append(bline)
+    return rt
+
   #line from boxes:
   #         z   s    w     n    e
   #1U319240 12 24.0 119.0 25.0 120.0

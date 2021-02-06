@@ -97,7 +97,7 @@ import {
         .then((res)=>{
             showHideOverlay('spinnerOverlay',false);
             if (res.numTiles !== undefined){
-                alert("seed started with "+res.numTiles+" tiles");
+                showToast("seed started with "+res.numTiles+" tiles");
             }
         })
         .catch((e)=>{
@@ -231,6 +231,10 @@ import {
         let title=document.getElementById('title');
         if (window.location.search.match(/title=no/)){
             if (title) title.style.display="none";
+        }
+        let toast=document.getElementById('toast');
+        if (toast){
+            toast.addEventListener('click',()=>showHideOverlay('toast'))
         }
         let demo=document.getElementById('demoFrame');
         if (demo) {

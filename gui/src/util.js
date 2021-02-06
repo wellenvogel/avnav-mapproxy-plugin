@@ -144,7 +144,7 @@ export const apiRequest=function(base,command){
     });
 }
 export const showError=(error)=>{
-    alert(error);
+    showToast(error,true);
 }
 export const getDateString=(d)=>{
     if (! d) d=new Date();
@@ -156,3 +156,19 @@ export const getDateString=(d)=>{
     else day=""+day;
     return d.getFullYear()+"-"+m+"-"+day;
 }
+let toastTimer=undefined;
+export const showToast=(text,error)=>{
+    if (toastTimer) window.clearTimeout(toastTimer);
+    let timeout=5000;
+    if (error) timeout=10000;
+    toastTimer=window.setTimeout(()=>{
+        showHideOverlay('toast');
+    },timeout)
+    setTextContent('#toast',text);
+    forEachEl('#toast',(el)=>{
+        if (error) el.classList.add('error');
+        else el.classList.remove('error');
+    })
+    showHideOverlay('toast',true);
+}
+

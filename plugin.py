@@ -152,6 +152,7 @@ class Plugin:
     self.queryPeriod=5
     self.seedRunner=None
     self.maxTiles=100000
+    self.boxes=None
 
 
 
@@ -266,6 +267,7 @@ class Plugin:
       self.seedRunner.checkRestart()
       # we register an handler for API requestscreateSeed(boundsFile,seedFile,name,cache,logger=None):
       self.api.registerRequestHandler(self.handleApiRequest)
+      self.boxes=seedCreator.Boxes(logHandler=self.api)
       guiPath="gui/index.html"
       testPath=self._getConfigValue('guiPath')
       if testPath is not None:
@@ -439,7 +441,30 @@ class Plugin:
       handler.close_connection=True
       shutil.copyfileobj(fh,handler.wfile)
       return True
-
+    if url == 'getBoxes':
+      try:
+        nelat = float(self._getRequestParam(args, 'nelat'))
+        nelng = float(self._getRequestParam(args, 'nelng'))
+        swlat = float(self._getRequestParam(args, 'swlat'))
+        swlng = float(self._getRequestParam(args, 'swlng'))
+        minZoom = self._getRequestParam(args, 'minZoom',False)
+        maxZoom = self._getRequestParam(args, 'maxZoom',False)
+        boxlines = self.boxes.getBoxes(nelat, nelng, swlat, swlng, minZoom, maxZoom)
+        handler.send_response(200, "OK")
+        handler.send_header('Content-Type', 'text/plain')
+        handler.send_header("Last-Modified", handler.date_time_string())
+        handler.end_headers()
+        handler.close_connection = True
+        for l in boxlines:
+          handler.wfile.write(l)
+        return True
+      except Exception as e:
+        handler.send_response(400, str(e))
+        handler.send_header('Content-Type', 'text/plain')
+        handler.end_headers()
+        handler.wfile.write(traceback.format_exc().encode('utf-8'))
+        handler.close_connection=True
+        return True
     #mapproxy requests
     if url.startswith(self.MPREFIX):
       if url.endswith('/avnav.xml'):

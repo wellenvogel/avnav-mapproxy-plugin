@@ -181,7 +181,7 @@ iframe.demoFrame {
 
 
 button {
-    width: 8em;
+    width: 7em;
     margin: 0.3em;
     background-size: contain;
     background-repeat: no-repeat;
@@ -320,6 +320,21 @@ button {
         display: flex;
         justify-content: center;
         align-items: center;
+    }
+}
+
+#toast {
+    position: fixed;
+    bottom: 2em;
+    left: 3em;
+    background-color: #1d1b1b;
+    opacity: 1;
+    z-index: 1000;
+    padding: 0.8em;
+    color: white;
+    visibility: hidden;
+    &.error{
+        background-color: #ef0505;
     }
 }
 

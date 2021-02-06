@@ -25,7 +25,7 @@ import 'leaflet/dist/leaflet.css';
 import 'leaflet-draw/dist/leaflet.draw.css';
 import L from 'leaflet';
 import 'leaflet-draw';
-import {apiRequest, forEach, setTextContent, showError} from "./util";
+import {apiRequest, forEach, setTextContent, showError, showToast} from "./util";
 export const getTileFromLatLon=(map,latLong,zoom)=>{
     let projected=map.project(latLong,zoom);
     let ts=L.point(256,256);
@@ -73,6 +73,48 @@ export const tileCountForBounds=(map,bounds,z)=>{
     let zTiles=xdiff*ydiff;
     return zTiles;
 }
+//one entry for each zoom level
+const COLOR_0='#04781d';
+const COLOR_1='#d49311';
+const COLOR_2='#ea3964';
+const COLOR_3='#1f7cef';
+const COLORMAP=[
+    COLOR_0,  //0
+    COLOR_0,
+    COLOR_0,
+    COLOR_0,
+    COLOR_0,
+    COLOR_0, //5
+    COLOR_0,
+    COLOR_0,
+    COLOR_0,
+    COLOR_0,
+    COLOR_0, //10
+    COLOR_1,
+    COLOR_1,
+    COLOR_1,
+    COLOR_2,
+    COLOR_2, //15
+    COLOR_2,
+    COLOR_3,
+    COLOR_3,
+    COLOR_3,
+    COLOR_3 //20
+]
+
+const getBoxStyle=(zoom)=>{
+    if (!zoom) zoom=0;
+    if (zoom < 0) zoom=0;
+    if (zoom >= COLORMAP.length) zoom=COLORMAP.length-1;
+    let color=COLORMAP[zoom];
+    let opacity=0.0;
+    if (zoom >= 15) opacity=0.1;
+    return {
+        color: color,
+        weight: 1,
+        fillOpacity: opacity
+    }
+}
 
 export default class SeedMap{
     constructor(mapdiv,apiBase) {
@@ -82,6 +124,24 @@ export default class SeedMap{
         this.apiBase=apiBase;
         this.map=L.map('map').setView([54,13],6);
         this.drawnItems=new L.FeatureGroup();
+        this.boxesLayer=new L.FeatureGroup();
+        this.map.addLayer(this.boxesLayer);
+        this.boxesLayer.on('click',(ev)=>{
+            let topmost=undefined;
+            this.boxesLayer.eachLayer((layer)=>{
+                if (layer.getBounds().contains(ev.latlng)){
+                    if (layer.avzoom !== undefined && layer.avname) {
+                        if (! topmost) topmost = layer;
+                        else{
+                            if (topmost.avzoom < layer.avzoom) topmost=layer;
+                        }
+                    }
+                }
+            })
+            if (topmost) {
+                showToast(topmost.avname+", zoom="+topmost.avzoom);
+            }
+        })
         this.map.addLayer(this.drawnItems);
         this.updateZoom();
         this.selectedLayer=undefined;
@@ -96,7 +156,8 @@ export default class SeedMap{
                 marker: false,
                 rectangle: {
                     shapeOptions: {
-                        clickable: true
+                        clickable: false,
+                        interactive: false,
                     }
                 }
             },
@@ -113,7 +174,12 @@ export default class SeedMap{
         });
         this.map.on(L.Draw.Event.DELETED,this.updateTileCount);
         this.map.on(L.Draw.Event.EDITED,this.updateTileCount);
-        this.map.on('zoomend',this.updateZoom)
+        this.map.on('zoomend',()=>{
+            this.updateZoom();
+            this.getBoxes();
+        })
+        this.map.on('moveend',()=>this.getBoxes());
+        this.map.on('loadend',()=>this.getBoxes())
     }
     getSelectedLayer(){
         return this.selectedLayer;
@@ -240,6 +306,44 @@ export default class SeedMap{
                 this.map.invalidateSize();
             })
             .catch((e)=>showError(e));
+    }
+
+    getBoxes(){
+        let bound=this.map.getBounds();
+        let url=this.apiBase+"/api/getBoxes?nelat="+encodeURIComponent(bound.getNorthEast().lat)+
+            "&nelng="+encodeURIComponent(bound.getNorthEast().lng)+
+            "&swlat="+encodeURIComponent(bound.getSouthWest().lat)+
+            "&swlng="+encodeURIComponent(bound.getSouthWest().lng);
+        let z=this.map.getZoom();
+        let minZoom=z-4;
+        if (minZoom < 0) minZoom=0;
+        let maxZoom=z+6;
+        url+="&minZoom="+encodeURIComponent(minZoom)+
+            "&maxZoom="+encodeURIComponent(maxZoom);
+        fetch(url)
+            .then((r)=>r.text())
+            .then((boxes)=>{
+                this.boxesLayer.clearLayers();
+                boxes=boxes.split("\n");
+                boxes.forEach((box)=>{
+                    let parts=box.split(/  */);
+                    if (parts.length !== 6) return;
+                    let zoom=parseInt(parts[1]);
+                    let name=parts[0];
+                    let rect=L.rectangle([
+                        L.latLng(parseFloat(parts[2]),parseFloat(parts[3])),
+                        L.latLng(parseFloat(parts[4]),parseFloat(parts[5]))
+                    ],getBoxStyle(zoom));
+                    rect.avzoom=zoom;
+                    rect.avname=name;
+                    /*
+                    rect.on('click',()=>{
+                        showToast(name+", zoom="+zoom);
+                    })*/
+                    this.boxesLayer.addLayer(rect);
+                })
+            })
+            .catch((e)=>{});
     }
 
 }
