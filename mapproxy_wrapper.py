@@ -125,6 +125,7 @@ class MapProxyWrapper(object):
       raise
 
     self.logger.log("created mapproxy wsgi app")
+    return True
 
   def getFatalError(self,reset=True):
     ownError=self.fatalError

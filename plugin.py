@@ -280,7 +280,9 @@ class Plugin:
     self.api.setStatus("INACTIVE","starting with config file %s"%configFile)
     while True:
       try:
-        self.mapproxy.createProxy(True)
+        rt=self.mapproxy.createProxy(True)
+        if rt:
+          self.sequence+=1
         self.api.setStatus('NMEA','mapproxy created with config file %s'%configFile)
       except Exception as e:
         self.api.setStatus('ERROR','unable to create mapproxy with config %s: %s'%
@@ -335,7 +337,7 @@ class Plugin:
     """
     try:
       if url == 'status':
-        rt={'status': 'OK'}
+        rt={'status': 'OK','sequence':self.sequence}
         if self.seedRunner is not None:
           rt['seed']=self.seedRunner.getStatus()
         if self.mapproxy is not None:
