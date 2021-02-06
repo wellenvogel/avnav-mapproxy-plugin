@@ -58,4 +58,12 @@ grids:
       #this srs and origin specify a grid that can be used elsewhere in the configuration. In this example it is used for the osm_tiles source. These settings are correct for openstreetmap.org tiles.
       #The google mercator srs is used (also called EPSG:900913), and the origin of the tiles is north-west). If you get this wrong, you might very well get an all-blue world.
       srs: 'EPSG:900913'
-      origin: nw  
+      origin: nw
+    osm_grid_xyz:
+      #this srs and origin specify a grid that can be used elsewhere in the configuration. In this example it is used for the osm_tiles source. These settings are correct for openstreetmap.org tiles.
+      #The google mercator srs is used (also called EPSG:900913), and the origin of the tiles is north-west). If you get this wrong, you might very well get an all-blue world.
+      srs: 'EPSG:900913'
+      origin: nw
+    osm_grid_tms:
+      srs: 'EPSG:900913'
+      origin: sw
