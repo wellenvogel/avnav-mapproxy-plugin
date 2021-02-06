@@ -20,6 +20,7 @@
 #  DEALINGS IN THE SOFTWARE.
 ###############################################################################
 import io
+import logging
 import os
 import traceback
 import urllib.parse
@@ -48,22 +49,102 @@ class OwnWsgiHandler(ServerHandler):
       return value
     return str(value)
 
-class MapProxyWrapper(object):
+class OwnLogHandler(logging.Handler):
+  PRFX="MapProxy"
+  DEBUG_ONLY=['mapproxy.source.request','mapproxy.config']
+  def __init__(self, logger,level=logging.NOTSET):
+    self.logger=logger
+    super().__init__(level)
+    self.fatalError=None
 
-  def __init__(self,prefix,configFile,logger):
+  def emit(self, record):
+    if isinstance(record.msg,BaseException):
+      exc=record.msg
+      estr=traceback.format_exception(etype=type(exc), value=exc, tb=exc.__traceback__)
+      for st in estr:
+        self.logger.error("%s: %s",self.PRFX,st)
+      if record.levelno == logging.FATAL:
+        self.fatalError=''.join(estr)
+    else:
+      logfunction=self.logger.debug
+      level=record.levelno
+      if level == logging.FATAL:
+        self.fatalError=str(record.msg%record.args or None)
+      if record.name in self.DEBUG_ONLY and level == logging.INFO:
+        level=logging.DEBUG
+      if level >= logging.ERROR:
+        logfunction=self.logger.error
+      elif level >= logging.INFO:
+        logfunction=self.logger.log
+      logfunction("%s: %s",self.PRFX,str(record.msg%record.args or None))
+
+  def getFatalError(self,reset=True):
+    rt=self.fatalError
+    if reset:
+      self.fatalError=None
+    return rt
+
+class MapProxyWrapper(object):
+  LOGGERS=['mapproxy']
+  def __init__(self,prefix,configFile,logger,loglevel=logging.NOTSET):
     self.prefix=prefix
     self.configFile=configFile
-    logger.log("creating mapproxy wsgi app with config %s",configFile)
-    self.mapproxy = make_wsgi_app(configFile, ignore_config_warnings=False, reloader=True)
-    logger.log("created mapproxy wsgi app")
+    self.handler=OwnLogHandler(logger)
+    for mplog in self.LOGGERS:
+      mplogger = logging.getLogger(mplog)
+      mplogger.setLevel(logging.INFO) #TODO: debug
+      mplogger.addHandler(self.handler)
+    self.mapproxy = None
     self.logger=logger
+    self.fatalError=None
+    self.configTimeStamp = None
+    self.layerMappings={}
 
+  def createProxy(self,changedOnly=False):
+    if self.mapproxy is None or self.configTimeStamp is None:
+      changedOnly=False
+    if not os.path.exists(self.configFile):
+      self.mapproxy = None
+      raise Exception("config file %s not found",self.configFile)
+    st = os.stat(self.configFile)
+    if changedOnly:
+      if st.st_mtime == self.configTimeStamp:
+        self.logger.debug("config file %s not changed",self.configFile)
+        return False
+    self.fatalError = None
+    self.mapproxy = None
+    self.configTimeStamp=st.st_mtime
+    self.logger.log("creating mapproxy wsgi app with config %s", self.configFile)
+    try:
+      self.mapproxy = make_wsgi_app(self.configFile, ignore_config_warnings=False, reloader=False)
+      self._readMappings()
+    except Exception as e:
+      self.layerMappings={}
+      self.logger.error("unable to create mapProxy: %s",traceback.format_exc())
+      self.fatalError=str(e)
+      raise
+
+    self.logger.log("created mapproxy wsgi app")
+
+  def getFatalError(self,reset=True):
+    ownError=self.fatalError
+    if reset:
+      self.fatalError=None
+    if ownError is not None:
+      return ownError
+    return self.handler.getFatalError(reset)
+
+  def getStatus(self):
+    return {
+      'running': self.mapproxy is not None,
+      'lastError': self.getFatalError()
+    }
   def getMaps(self):
     rt=[]
-    if self.mapproxy is None or self.mapproxy.app is None:
+    if self.mapproxy is None :
       self.logger.debug("mapproxy not initialized in getMaps")
       return rt
-    handlers=self.mapproxy.app.handlers
+    handlers=self.mapproxy.handlers
     if handlers is None or handlers.get('tiles') is None:
       self.logger.debug("no tiles service in mapproxy in getMaps")
       return rt
@@ -98,7 +179,10 @@ class MapProxyWrapper(object):
       rt.append(entry)
     return rt
 
-  def getMappings(self,raiseError=False):
+  def getMappings(self):
+    return self.layerMappings
+
+  def _readMappings(self,raiseError=False):
     from mapproxy.config.loader import load_configuration_file
     config = {}
     if not os.path.exists(self.configFile):
@@ -132,7 +216,8 @@ class MapProxyWrapper(object):
             if layer2caches.get(name) is None:
               layer2caches[name] = []
             layer2caches[name].append(s)
-    return layer2caches
+    self.layerMappings=layer2caches
+    return self.layerMappings
 
   def _getWsgiEnv(self, handler):
       server_version = "WSGIServer/0.2"
@@ -182,6 +267,9 @@ class MapProxyWrapper(object):
       return env
 
   def handleRequest(self,url,handler,args):
+    if self.mapproxy is None:
+      self.logger.error("request %s, mapproxy not created",url)
+      raise Exception("mapproxy not created")
     stderr = io.StringIO()
     try:
       shandler = OwnWsgiHandler(

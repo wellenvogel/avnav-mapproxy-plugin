@@ -277,8 +277,14 @@ class Plugin:
       return
     self.api.log("started")
     configFile = os.path.join(self.dataDir, self.USER_CONFIG)
-    self.api.setStatus("NMEA","successfully started with config file %s"%configFile)
+    self.api.setStatus("INACTIVE","starting with config file %s"%configFile)
     while True:
+      try:
+        self.mapproxy.createProxy(True)
+        self.api.setStatus('NMEA','mapproxy created with config file %s'%configFile)
+      except Exception as e:
+        self.api.setStatus('ERROR','unable to create mapproxy with config %s: %s'%
+                           (configFile,str(e)))
       try:
         if self.seedRunner is not None:
           self.seedRunner.checkRunning()
@@ -332,6 +338,8 @@ class Plugin:
         rt={'status': 'OK'}
         if self.seedRunner is not None:
           rt['seed']=self.seedRunner.getStatus()
+        if self.mapproxy is not None:
+          rt['mapproxy']=self.mapproxy.getStatus()
         return rt
       if url == 'layers':
         return {
