@@ -34,7 +34,16 @@ import {
     showHideOverlay,
     setCloseOverlayActions,
     showSelectOverlay,
-    setStateDisplay, setTextContent, apiRequest, showError, forEachEl, getDateString, showToast, buildSelect
+    setStateDisplay,
+    setTextContent,
+    apiRequest,
+    showError,
+    forEachEl,
+    getDateString,
+    showToast,
+    buildSelect,
+    buildRadio,
+    changeRadio
 } from "./util";
 (function(){
     let activeTab=undefined;
@@ -45,6 +54,8 @@ import {
     let lastSequence=undefined;
     let reloadDays=undefined;
     let hasReloadTime=false;
+    let networkModeSt=undefined;
+    let networkModeDl=undefined;
     let codeChanged=function(changed){
         buttonEnable('saveEditOverlay',changed && ! ignoreNextChanged);
         ignoreNextChanged=false;
@@ -170,6 +181,11 @@ import {
             })
             .catch((e)=>showError(e));
     }
+    let changeNetworkMode=(mode)=>{
+        apiRequest(base,'setNetworkMode?mode='+encodeURIComponent(mode))
+            .then(()=>{})
+            .catch((e)=>showError(e));
+    }
     let buttonActions={
         checkEditOverlay: getAndCheckConfig,
         downloadEditOverlay: ()=>downloadConfig(),
@@ -286,6 +302,15 @@ import {
         });
         reloadDays=undefined;
     }
+    let buildNetworkMode=()=>{
+        let modes=[
+            {label:'auto',value:'auto',checked:true},
+            {label:'on',value:'on'},
+            {label:'off',value:'off'}
+        ]
+        networkModeSt=buildRadio('#networkModeSt',modes,changeNetworkMode);
+        networkModeDl=buildRadio('#networkModeDl',modes,changeNetworkMode);
+    }
     window.addEventListener('load',function(){
         let title=document.getElementById('title');
         if (window.location.search.match(/title=no/)){
@@ -332,6 +357,7 @@ import {
             });
         setCloseOverlayActions();
         buildReloadSelect();
+        buildNetworkMode();
         flask=new CodeFlask('#editOverlay .overlayContent',{
             language: 'yaml',
             lineNumbers: true,
@@ -362,6 +388,13 @@ import {
                     buttonEnable('startSeed',seedStatus !== 'running' && canSave);
                     buttonEnable('killSeed',seedStatus === 'running');
                     buttonEnable('showLog',seed.logFile);
+                    changeRadio(networkModeSt,data.networkMode);
+                    changeRadio(networkModeDl,data.networkMode);
+                    let networkState='unknown';
+                    if (data.networkAvailable !== undefined){
+                        networkState=data.networkAvailable?'ok':'error';
+                    }
+                    setStateDisplay('.networkState',networkState);
                     let name=seed.name||'';
                     if (name instanceof Array) name=name.join(',');
                     name=(seed.selection||'')+' '+name;

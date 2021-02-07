@@ -26,6 +26,7 @@ import os
 import re
 import shutil
 import sys
+import threading
 import time
 import traceback
 import urllib.parse
@@ -51,6 +52,7 @@ def loadModuleFromFile(fileName):
 seedCreator=loadModuleFromFile('create_seed.py')
 seedRunner=loadModuleFromFile('seed_runner.py')
 mapproxyWrapper=loadModuleFromFile('mapproxy_wrapper.py')
+networkChecker=loadModuleFromFile('network.py')
 
 NAME="mapproxy"
 
@@ -81,6 +83,10 @@ class Plugin:
   ICONFILE="logo.png"
   WD_SELECTIONS='selections'
   WD_SEED='seed'
+  NW_AUTO='auto'
+  NW_ON='on'
+  NW_OFF='off'
+  NETWORK_MODES=[NW_AUTO,NW_OFF,NW_ON]
   AVNAV_XML = """<?xml version="1.0" encoding="UTF-8" ?>
     <TileMapService version="1.0.0" >
      <Title>%(title)s</Title>
@@ -128,6 +134,16 @@ class Plugin:
           'name': 'maxTiles',
           'description': 'max allowed tiles for one seed',
           'default': 100000
+        },
+        {
+          'name': 'networkMode',
+          'description': 'one of auto|on|off',
+          'default': 'auto'
+        },
+        {
+          'name': 'checkHost',
+          'description': 'hostname to use for network checks',
+          'default': 'www.wellenvogel.de'
         }
 
         ],
@@ -153,6 +169,11 @@ class Plugin:
     self.seedRunner=None
     self.maxTiles=100000
     self.boxes=None
+    self.networkMode=self.NW_AUTO
+    self.networkAvailable=None
+    self.networkHost=None
+    self.networkChecker=None
+    self.condition=threading.Condition()
 
 
 
@@ -241,6 +262,21 @@ class Plugin:
             if os.path.exists(name):
               return name
 
+  def _wakeupLoop(self):
+    self.condition.acquire()
+    try:
+      self.condition.notifyAll()
+    finally:
+      self.condition.release()
+
+  def _waitLoop(self,time):
+    self.condition.acquire()
+    try:
+      self.condition.wait(time)
+    finally:
+      self.condition.release()
+
+
   def run(self):
     """
     the run method
@@ -291,6 +327,18 @@ class Plugin:
       self.api.registerUserApp(self.api.getBaseUrl() + "/"+guiPath, "logo.png")
       self.api.registerChartProvider(self.listCharts)
       self.queryPeriod=int(self._getConfigValue('chartQueryPeriod'))
+      self.networkMode=self._getConfigValue('networkMode')
+      if not self.networkMode in self.NETWORK_MODES:
+        raise Exception("invalid newtork mode %s, allowed: %s"%
+                        (self.networkMode,",".join(self.NETWORK_MODES)))
+      self.networkHost=self._getConfigValue('checkHost')
+      self.networkChecker=networkChecker.NetworkChecker(self.networkHost,checkInterval=max(60,self.queryPeriod*5))
+      self.networkChecker.available(True)
+      if self.networkMode == self.NW_OFF:
+        self.networkAvailable=False
+      else:
+        #assume True for auto until first check...
+        self.networkAvailable=True
     except Exception as e:
       self.api.error("error in startup: %s",traceback.format_exc())
       self.api.setStatus("ERROR","exception in startup: %s"%str(e))
@@ -300,8 +348,21 @@ class Plugin:
     self.api.setStatus("INACTIVE","starting with config file %s"%configFile)
     while True:
       incrementSequence=False
+      restartProxy=False
       try:
-        rt=self.mapproxy.createProxy(True)
+        if self.networkMode == self.NW_AUTO:
+          available=self.networkChecker.available(True)
+        else:
+          available=True if self.networkMode==self.NW_ON else False
+        if available != self.networkAvailable and available is not None:
+          self.api.log("network state changed to %s",str(available))
+          restartProxy=True
+          self.networkAvailable=available
+          #TODO: pause seed
+      except Exception as e:
+        self.api.debug("error in network check: %s",str(e))
+      try:
+        rt=self.mapproxy.createProxy(changedOnly=not restartProxy,isOffline=not self.networkAvailable)
         if rt:
           incrementSequence=True
         self.api.setStatus('NMEA','mapproxy created with config file %s'%configFile)
@@ -323,7 +384,8 @@ class Plugin:
         self.api.debug("error in main loop reading config: %s",traceback.format_exc())
       if incrementSequence:
         self.sequence += 1
-      time.sleep(self.queryPeriod)
+      self._waitLoop(self.queryPeriod)
+
 
   def _findChartEntry(self,path):
     for ce in self.charts:
@@ -355,7 +417,11 @@ class Plugin:
     """
     try:
       if url == 'status':
-        rt={'status': 'OK','sequence':self.sequence}
+        rt={'status': 'OK',
+            'sequence':self.sequence,
+            'networkMode': self.networkMode,
+            'networkAvailable':self.networkAvailable
+            }
         if self.seedRunner is not None:
           rt['seed']=self.seedRunner.getStatus()
         if self.mapproxy is not None:
@@ -366,6 +432,13 @@ class Plugin:
           'status':'OK',
           'data': self._getLayers()
         }
+      if url == 'setNetworkMode':
+        mode=self._getRequestParam(args,'mode')
+        if mode not in self.NETWORK_MODES:
+          raise Exception("invalid mode %s, allowed: %s"%(mode,",".join(self.NETWORK_MODES)))
+        self.networkMode=mode
+        self._wakeupLoop()
+        return {'status':'OK'}
       if url == 'saveSelection':
         data=self._getRequestParam(args,'data')
         name=self._getRequestParam(args,'name')
@@ -430,10 +503,13 @@ class Plugin:
       if url == 'saveConfig':
         data = self._getRequestParam(args, 'data')
         try:
-          yaml.safe_load(data)
+          parsed=yaml.safe_load(data)
         except Exception as e:
           return {'status':'invalid yaml: %s'%str(e)}
-        #TODO: semantic check
+        self.mapproxy.parseAndCheckConfig(
+          offline=not self.networkAvailable,
+          cfg=parsed
+        )
         outname=os.path.join(self.dataDir,self.USER_CONFIG)
         tmpname=outname+".tmp%s"%str(time.time())
         with open(tmpname,"w") as oh:
@@ -447,7 +523,7 @@ class Plugin:
           except:
             pass
           return {'status':'unable to write %s: %s'%(outname,str(e))}
-        #TODO: trigger immediate reload
+        self._wakeupLoop()
         return {'status':'OK'}
     except Exception as e:
       return {'status':str(e)}

@@ -191,4 +191,39 @@ export const buildSelect=(parent,list,changeHandler)=>{
     }
     parent.appendChild(select);
 }
+let radioCount=1;
+export const buildRadio=(parent,list,changeHandler)=>{
+    if (typeof(parent) === 'string') parent=document.querySelector(parent);
+    if (! parent) return;
+    radioCount++;
+    let name="radio"+radioCount;
+    parent.innerHTML='';
+    let frame=document.createElement('div');
+    frame.classList.add('radioFrame');
+    list.forEach((le)=>{
+        let el=document.createElement('span');
+        el.classList.add('label');
+        el.textContent=le.label;
+        frame.appendChild(el);
+        el=document.createElement('input');
+        el.setAttribute('type','radio');
+        el.setAttribute('name',name);
+        el.setAttribute('value',le.value);
+        if (le.checked) el.checked=true;
+        el.addEventListener('change',(ev)=>{
+            changeHandler(ev.target.getAttribute('value'));
+        })
+        frame.appendChild(el);
+    });
+    parent.appendChild(frame);
+    return frame;
+}
+export const changeRadio=(parent,value)=>{
+    if (typeof(parent) === 'string') parent=document.querySelector(parent);
+    if (!parent) return;
+    forEach(parent.querySelectorAll('input[type="radio"]'),(el)=>{
+        if (el.getAttribute('value') === value) el.checked=true;
+        else el.checked=false;
+    })
+}
 

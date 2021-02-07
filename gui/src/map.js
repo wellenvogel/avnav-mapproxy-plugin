@@ -299,34 +299,41 @@ export default class SeedMap{
         for (let k in this.layers) {
             this.map.removeLayer(this.layers[k].map);
         }
+        let suffix=encodeURIComponent((new Date()).getTime());
         apiRequest(this.apiBase, 'layers')
             .then((resp) => {
                 if (resp && resp.data && resp.data.base) {
                     let cfg = resp.data.base;
                     let name = cfg.name;
                     let url = cfg.url;
-                    let layer = L.tileLayer(url + '/{z}/{x}/{y}.png', {});
+                    let layer = L.tileLayer(url + '/{z}/{x}/{y}.png?_='+suffix, {});
                     layer.addTo(this.map);
                 }
                 if (resp && resp.data) {
                     let selectList=[];
-                    let first=true;
+                    let foundLayer=false;
                     for (let lname in resp.data) {
                         if (lname === 'base') continue;
                         let lconfig = resp.data[lname];
                         lconfig.name=lname;
-                        let layer = L.tileLayer(lconfig.url + '/{z}/{x}/{y}.png');
+                        let layer = L.tileLayer(lconfig.url + '/{z}/{x}/{y}.png?_='+suffix);
                         this.layers[lname] = {map:layer,config:lconfig};
                         selectList.push({
                             label:lname,
                             value:lname,
-                            selected: first
+                            selected: lname === this.selectedLayer
                         });
-                        if (first) {
+                        if (lname === this.selectedLayer) {
+                            foundLayer=true;
                             this.map.addLayer(layer);
-                            this.selectedLayer=lname;
                         }
-                        first=false;
+                    }
+                    if (! foundLayer){
+                        if (selectList.length > 0){
+                            this.selectedLayer=selectList[0].value;
+                            selectList[0].selected=true;
+                            this.map.addLayer(this.layers[this.selectedLayer].map);
+                        }
                     }
                     buildSelect(listParent,selectList,(ev)=>{
                         let select=ev.target;
