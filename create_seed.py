@@ -294,7 +294,7 @@ class SeedWriter(LogEnabled):
     return out
 
 
-def createSeed(boundsFile,name,caches,seedFile=None,logger=None):
+def createSeed(boundsFile,name,caches,seedFile=None,logger=None,reloadDays=None):
   merger = Boxes(logHandler=logger)
   with open(boundsFile, 'r') as h:
     blist = yaml.safe_load(h)
@@ -303,7 +303,10 @@ def createSeed(boundsFile,name,caches,seedFile=None,logger=None):
     boxesList.append(Box.fromDict(b))
   res = merger.mergeBoxes(boxesList)
   writer = SeedWriter(logger)
-  seeds = writer.buildOutput(merger.getParsed(), name, {'caches': caches})
+  param={'caches': caches}
+  if reloadDays is not None:
+    param['refresh_before']={'days':int(reloadDays)}
+  seeds = writer.buildOutput(merger.getParsed(), name, param)
   if seedFile is not None:
     writer.write(seedFile, seeds)
   return (merger.numTiles,seeds)

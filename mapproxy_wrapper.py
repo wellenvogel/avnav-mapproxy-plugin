@@ -200,17 +200,19 @@ class MapProxyWrapper(object):
           if s in caches:
             centry=caches[s].copy()
             centry['name']=s
+            cachecfg=centry.get('cache',{})
+            centry['hasBefore']=cachecfg.get('type') in ['sqlite','files']
             if layer2caches.get(name) is None:
               layer2caches[name] = []
             layer2caches[name].append(centry)
     return (cfg,layer2caches)
 
-  def _getConfigName(self,isOffline):
+  def getConfigName(self,isOffline):
     return self.normalConfig if not isOffline else self.offlineConfig
 
   def createConfigAndMappings(self,isOffline=False):
     (cfg,mappings)=self.parseAndCheckConfig(offline=isOffline)
-    outname=self._getConfigName(isOffline)
+    outname=self.getConfigName(isOffline)
     tmpname=outname+".tmp"
     with open(tmpname,"w") as fh:
       yaml.safe_dump(cfg,fh)
@@ -222,6 +224,11 @@ class MapProxyWrapper(object):
         os.unlink(tmpname)
       except:
         pass
+    other=self.getConfigName(not isOffline)
+    try:
+      os.unlink(other)
+    except:
+      pass
     self.layerMappings=mappings
 
 
@@ -239,10 +246,10 @@ class MapProxyWrapper(object):
     self.fatalError = None
     self.mapproxy = None
     self.configTimeStamp=st.st_mtime
-    self.logger.log("creating mapproxy wsgi app with config %s", self._getConfigName(isOffline))
+    self.logger.log("creating mapproxy wsgi app with config %s", self.getConfigName(isOffline))
     try:
       self.createConfigAndMappings(isOffline)
-      self.mapproxy = make_wsgi_app(self._getConfigName(isOffline), ignore_config_warnings=True, reloader=False)
+      self.mapproxy = make_wsgi_app(self.getConfigName(isOffline), ignore_config_warnings=True, reloader=False)
       self.getFatalError(True)
     except Exception as e:
       self.layerMappings={}

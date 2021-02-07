@@ -277,7 +277,7 @@ class Plugin:
                                                 os.path.join(self.dataDir,self.USER_CONFIG),
                                                 self.api)
       self.seedRunner=seedRunner.SeedRunner(self._getDataDir(self.WD_SEED),
-                                            os.path.join(self.dataDir, self.USER_CONFIG),
+                                            self.mapproxy.getConfigName(False), #only if online...
                                             self.api)
       self.seedRunner.checkRestart()
       # we register an handler for API requestscreateSeed(boundsFile,seedFile,name,cache,logger=None):
@@ -380,7 +380,11 @@ class Plugin:
             return {'status':'no caches found for layer %s'%layerName}
           seedName = "seed-" + datetime.now().strftime('%Y%m%d-%H%M%s')
           cacheNames=list(map(lambda x:x['name'],caches))
-          (numTiles, seeds) = seedCreator.createSeed(outname, seedName, cacheNames, logger=self.api)
+          reloadDays=self._getRequestParam(args,'reloadDays',raiseMissing=False)
+          (numTiles, seeds) = seedCreator.createSeed(outname, seedName,
+                                                     cacheNames,
+                                                     logger=self.api,
+                                                     reloadDays=reloadDays)
           if numTiles > self.maxTiles:
             return {'status':'number of tiles %d larger then allowed %s'%(numTiles,self.maxTiles)}
           self.seedRunner.runSeed(seeds, cacheNames,selectionName=self._safeName(name))

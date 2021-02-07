@@ -218,7 +218,7 @@ export default class SeedMap{
         if (old !== on) this.getBoxes();
     }
     getSelectedLayer(){
-        return this.selectedLayer;
+        return (this.layers[this.selectedLayer] ||{}).config ||{};
     }
     hasDrawnItems(){
         return this.drawnItems.getLayers().length>0;
@@ -283,7 +283,7 @@ export default class SeedMap{
 
     loadLayers(listParent) {
         for (let k in this.layers) {
-            this.map.removeLayer(this.layers[k]);
+            this.map.removeLayer(this.layers[k].map);
         }
         apiRequest(this.apiBase, 'layers')
             .then((resp) => {
@@ -300,8 +300,9 @@ export default class SeedMap{
                     for (let lname in resp.data) {
                         if (lname === 'base') continue;
                         let lconfig = resp.data[lname];
+                        lconfig.name=lname;
                         let layer = L.tileLayer(lconfig.url + '/{z}/{x}/{y}.png');
-                        this.layers[lname] = layer;
+                        this.layers[lname] = {map:layer,config:lconfig};
                         selectList.push({
                             label:lname,
                             value:lname,
@@ -318,11 +319,11 @@ export default class SeedMap{
                         let selectedLayer=select.options[select.selectedIndex].value;
                         if (! selectedLayer) return;
                         let layer=this.layers[selectedLayer];
-                        if (! layer) return;
+                        if (! layer || ! layer.map) return;
                         let old=this.layers[this.selectedLayer];
                         this.selectedLayer=selectedLayer;
-                        if (old) this.map.removeLayer(old);
-                        this.map.addLayer(layer);
+                        if (old && old.map) this.map.removeLayer(old.map);
+                        this.map.addLayer(layer.map);
                     });
                 }
                 this.map.invalidateSize();

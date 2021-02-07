@@ -44,6 +44,7 @@ import {
     let ignoreNextChanged=false;
     let lastSequence=undefined;
     let reloadDays=undefined;
+    let hasReloadTime=false;
     let codeChanged=function(changed){
         buttonEnable('saveEditOverlay',changed && ! ignoreNextChanged);
         ignoreNextChanged=false;
@@ -91,7 +92,7 @@ import {
             encodeURIComponent(JSON.stringify(bounds))+
             "&name="+encodeURIComponent(name);
         if (seedFor){
-            url+="&startSeed="+encodeURIComponent(map.getSelectedLayer());
+            url+="&startSeed="+encodeURIComponent(map.getSelectedLayer().name);
             if (reloadDays !== undefined){
                 url+="&reloadDays="+encodeURIComponent(reloadDays);
             }
@@ -237,6 +238,28 @@ import {
         activeTab=id;
         updateLayers();
     }
+    let buildReloadSelect=(full)=>{
+        let reloadSelectFull=[
+            {label:'never',value:undefined,selected:true},
+            {label: '1 year',value:360},
+            {label: '6 month', value: 180},
+            {label: '3 month',value: 90},
+            {label: '4 weeks',value:28},
+            {label: '1 week',value:7},
+            {label: '1 day',value:1},
+            {label: 'all',value:0}
+        ]
+        let reloadSelect=[
+            {label:'never',value:undefined,selected:true},
+            {label: 'all',value:0}
+        ]
+        buildSelect('#reloadTime',full?reloadSelectFull:reloadSelect,(ev)=>{
+            let v=ev.target.options[ev.target.selectedIndex].value;
+            if (v === 'undefined') v =undefined;
+            reloadDays=v;
+        });
+        reloadDays=undefined;
+    }
     window.addEventListener('load',function(){
         let title=document.getElementById('title');
         if (window.location.search.match(/title=no/)){
@@ -271,20 +294,7 @@ import {
                 })
             });
         setCloseOverlayActions();
-        let reloadSelect=[
-            {label:'never',value:undefined,selected:true},
-            {label: '1 year',value:360},
-            {label: '6 month', value: 180},
-            {label: '3 month',value: 90},
-            {label: '4 weeks',value:28},
-            {label: '1 week',value:7},
-            {label: '1 day',value:1},
-            {label: 'all',value:0}
-        ]
-        buildSelect('#reloadTime',reloadSelect,(ev)=>{
-            let v=ev.target.options[ev.target.selectedIndex].value;
-            reloadDays=v;
-        });
+        buildReloadSelect();
         flask=new CodeFlask('#editOverlay .overlayContent',{
             language: 'yaml',
             lineNumbers: true,
@@ -325,6 +335,19 @@ import {
                     if (data.sequence !== lastSequence){
                         if (lastSequence !== undefined) updateLayers();
                         lastSequence=data.sequence;
+                    }
+                    //check if we need to change the reload selection
+                    let layerCaches=map.getSelectedLayer().caches;
+                    let fullConfig=false;
+                    if (layerCaches){
+                        fullConfig=true;
+                        layerCaches.forEach((lc)=>{
+                            if (! lc.hasBefore) fullConfig=false;
+                        })
+                    }
+                    if (hasReloadTime !== fullConfig){
+                        buildReloadSelect(fullConfig);
+                        hasReloadTime=fullConfig;
                     }
                 })
                 .catch(function (error) {
