@@ -29,19 +29,6 @@ version="$1"
 if [ "$version" = "" ] ; then
   version=`date '+%Y%m%d'`
 fi
-echo loading/checking boxes
-if [ ! -d "$buildDir" ]; then
-  mkdir -p "$buildDir" || err unable to create $buildDir
-fi
-for box in `echo $boxes`
-do
-  bf="$buildDir/$box"
-  if [ ! -f "$bf" -o $force = 1 ]; then
-    url="$boxesRepo/$box"
-    echo downloading "$url"
-    curl -o "$bf" -f "$url" || err unable to download "$url"
-  fi
-done
 if [ $incremental != 1 ];then
   echo npm install
   ( cd gui && npm install ) || err error in npm install
