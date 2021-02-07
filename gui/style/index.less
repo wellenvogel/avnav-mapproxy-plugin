@@ -104,6 +104,13 @@ iframe.demoFrame {
                 flex-wrap: wrap;
             }
         }
+        .seedStatusFrame {
+            @media (max-width: @smallBreak) {
+                display: flex;
+                flex-direction: row;
+                flex-wrap: wrap;
+            }
+        }
         .buttonFrame{
             margin-top: 1em;
             flex-direction: row;
@@ -349,4 +356,14 @@ button {
         flex-direction: row;
     }
 
+}
+
+.zoomInfoControl{
+    padding: 0.3em;
+    font-size: 1.2em;
+    background-color: white;
+    text-align: center;
+    vertical-align: middle;
+    border-top-left-radius: 2px;
+    border-top-right-radius: 2px;
 }

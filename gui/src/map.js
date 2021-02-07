@@ -116,9 +116,39 @@ const getBoxStyle=(zoom)=>{
     }
 }
 
+class ZoomInfo extends L.Control{
+    constructor(options) {
+        super(options);
+        this.zoomChange=this.zoomChange.bind(this);
+        this.el=undefined;
+        this.map=undefined;
+    }
+    zoomChange(){
+        if (! this.el || ! this.map) return;
+        this.el.textContent=this.map.getZoom();
+    }
+    onAdd(map){
+        this.map=map;
+        let fr=document.createElement('div');
+        fr.classList.add('zoomInfoControl');
+        let sp=document.createElement('span');
+        sp.classList.add('label');
+        sp.textContent="Zoom";
+        fr.appendChild(sp);
+        this.el=document.createElement('span');
+        this.el.classList.add('value');
+        this.el.textContent=map.getZoom();
+        fr.appendChild(this.el);
+        map.on('zoom',this.zoomChange);
+        return fr;
+    }
+    onRemove(){
+        if (this.map) this.map.off('zoom',this.zoomChange);
+        this.el=undefined;
+    }
+}
 export default class SeedMap{
     constructor(mapdiv,apiBase,showBoxes) {
-        this.updateZoom=this.updateZoom.bind(this);
         this.updateTileCount=this.updateTileCount.bind(this);
         this.mapdiv=mapdiv;
         this.apiBase=apiBase;
@@ -127,6 +157,8 @@ export default class SeedMap{
         this.drawnItems=new L.FeatureGroup();
         this.boxesLayer=new L.FeatureGroup();
         this.map.addLayer(this.boxesLayer);
+        this.zoomControl=new ZoomInfo({position:'bottomleft'});
+        this.zoomControl.addTo(this.map);
         this.boxesLayer.on('click',(ev)=>{
             let topmost=undefined;
             this.boxesLayer.eachLayer((layer)=>{
@@ -144,7 +176,6 @@ export default class SeedMap{
             }
         })
         this.map.addLayer(this.drawnItems);
-        this.updateZoom();
         this.selectedLayer=undefined;
         this.layers={};
         this.drawControl = new L.Control.Draw({
@@ -176,7 +207,6 @@ export default class SeedMap{
         this.map.on(L.Draw.Event.DELETED,this.updateTileCount);
         this.map.on(L.Draw.Event.EDITED,this.updateTileCount);
         this.map.on('zoomend',()=>{
-            this.updateZoom();
             this.getBoxes();
         })
         this.map.on('moveend',()=>this.getBoxes());
@@ -198,9 +228,6 @@ export default class SeedMap{
     }
     getDrawn(){
         return this.drawnItems;
-    }
-    updateZoom(){
-        setTextContent('#currentZoom',this.map.getZoom());
     }
     updateTileCount(){
         let te=document.getElementById('numTiles');
