@@ -147,6 +147,13 @@ class ZoomInfo extends L.Control{
         this.el=undefined;
     }
 }
+
+const SELECT_OPTIONS = {
+    pane: 'selections',
+    clickable: true,
+    interactive: true,
+}
+
 export default class SeedMap{
     constructor(mapdiv,apiBase,showBoxes) {
         this.updateTileCount=this.updateTileCount.bind(this);
@@ -154,7 +161,6 @@ export default class SeedMap{
         this.apiBase=apiBase;
         this.showBoxes=showBoxes;
         this.map=L.map('map').setView([54,13],6);
-        this.drawnItems=new L.FeatureGroup();
         this.boxesLayer=new L.FeatureGroup();
         this.map.addLayer(this.boxesLayer);
         this.zoomControl=new ZoomInfo({position:'bottomleft'});
@@ -175,6 +181,9 @@ export default class SeedMap{
                 showToast(topmost.avname+", zoom="+topmost.avzoom);
             }
         })
+        this.drawPane=this.map.createPane('selections');
+        this.drawPane.style.zIndex=900;
+        this.drawnItems=new L.FeatureGroup([],{pane:'selections'});
         this.map.addLayer(this.drawnItems);
         this.selectedLayer=undefined;
         this.layers={};
@@ -187,10 +196,7 @@ export default class SeedMap{
                 circlemarker: false,
                 marker: false,
                 rectangle: {
-                    shapeOptions: {
-                        clickable: false,
-                        interactive: false,
-                    }
+                    shapeOptions: SELECT_OPTIONS
                 }
             },
             edit: {
@@ -211,6 +217,10 @@ export default class SeedMap{
         })
         this.map.on('moveend',()=>this.getBoxes());
         this.map.on('loadend',()=>this.getBoxes())
+        this.map.on('draw:created',(e)=>{
+            console.log("created "+e);
+            e.layer.addEventParent(this.boxesLayer);
+        })
     }
     setShowBoxes(on){
         let old=this.showBoxes;
@@ -275,7 +285,11 @@ export default class SeedMap{
         this.drawnItems.clearLayers();
         for (let i in selections){
             let box=selections[i];
-            let rect=L.rectangle([L.latLng(box._southWest),L.latLng(box._northEast)]);
+            let rect=L.rectangle(
+                [L.latLng(box._southWest),L.latLng(box._northEast)],
+                SELECT_OPTIONS
+            );
+            rect.addEventParent(this.boxesLayer);
             this.drawnItems.addLayer(rect);
         }
         this.updateTileCount();
