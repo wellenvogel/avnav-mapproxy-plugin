@@ -26,6 +26,8 @@ import traceback
 import urllib.parse
 from wsgiref.headers import Headers
 from wsgiref.simple_server import ServerHandler
+
+import yaml
 from mapproxy.wsgiapp import make_wsgi_app
 
 
@@ -84,11 +86,29 @@ class OwnLogHandler(logging.Handler):
       self.fatalError=None
     return rt
 
+def layerListToDict(l):
+  if isinstance(l,dict):
+    return l
+  rt={}
+  for i in l:
+    if i.get('name') is None:
+      raise Exception("missing name in list layerlist")
+    rt[i['name']]=i
+  return rt
+
+def layerDictToList(d):
+  rt=[]
+  for k,v in d.items():
+    v['name']=k
+    rt.append(v)
+  return rt
 class MapProxyWrapper(object):
   LOGGERS=['mapproxy']
   def __init__(self,prefix,configFile,logger,loglevel=logging.NOTSET):
     self.prefix=prefix
     self.configFile=configFile
+    self.normalConfig=configFile+".normal"
+    self.offlineConfig=configFile+".offline"
     self.handler=OwnLogHandler(logger)
     for mplog in self.LOGGERS:
       mplogger = logging.getLogger(mplog)
@@ -100,7 +120,112 @@ class MapProxyWrapper(object):
     self.configTimeStamp = None
     self.layerMappings={}
 
-  def createProxy(self,changedOnly=False):
+  def _mergeCfg(self,current,base,isFirstLevel=False):
+    for k,v in current.items():
+      if not k in base:
+        base[k]=v
+      else:
+        if type(base[k]) != type(v):
+          #we only allow different types for the
+          #old and new style layers on first level
+          if k != 'layers' or not isFirstLevel:
+            raise Exception("cannot merge different types for key %s: %s <=> %s"%(
+              k,str(v),str(base[k])))
+          layers=layerListToDict(base[k])
+          layers.update(layerListToDict(v))
+          base[k]=layerDictToList(layers)
+        else:
+          if k == 'layers' and isFirstLevel:
+            layers = layerListToDict(base[k])
+            layers.update(layerListToDict(v))
+            base[k] = layerDictToList(layers)
+          else:
+            if isinstance(base[k],dict):
+              self._mergeCfg(v,base[k])
+            else:
+              base[k]=v
+    return base
+
+  def _mergeBaseFiles(self,cfg,baseDir):
+    if 'base' in cfg:
+      baseFiles = cfg.pop('base')
+      if isinstance(baseFiles, str):
+        baseFiles = [baseFiles]
+      for base in baseFiles:
+        if not os.path.isabs(base):
+          base = os.path.join(baseDir, base)
+          baseCfg = self._loadConfigFile(base)
+          cfg = self._mergeCfg(cfg, baseCfg, True)
+    return cfg
+
+  def _loadConfigFile(self,file):
+    baseDir=os.path.dirname(file)
+    if not os.path.exists(file):
+      raise Exception("config file %s not found"%file)
+    with open(file,"r") as fh:
+      cfg=yaml.safe_load(fh)
+      fh.close()
+    return self._mergeBaseFiles(cfg,baseDir)
+
+  def parseAndCheckConfig(self,offline=False,cfg=None):
+    if cfg is None:
+      inputFile=self.configFile
+      cfg=self._loadConfigFile(inputFile)
+    else:
+      cfg=self._mergeBaseFiles(cfg,os.path.dirname(self.configFile))
+
+    if offline is True:
+      sources=cfg.get('sources')
+      if sources is not None:
+        for k,v in sources.items():
+          v['seed_only']=True
+
+    layer2caches = {}
+    layers = cfg.get('layers')
+    caches = cfg.get('caches')
+    if layers is not None and caches is not None:
+      layerlist = []
+      if isinstance(layers, list):
+        layerlist = layers
+      else:
+        for k, v in layers.items():
+          v['name'] = k
+        layerlist = list(layers.values())
+      for layer in layerlist:
+        name = layer.get('name')
+        sources = layer.get('sources', [])
+        if name is None:
+          continue
+        for s in sources:
+          if s in caches:
+            centry=caches[s].copy()
+            centry['name']=s
+            if layer2caches.get(name) is None:
+              layer2caches[name] = []
+            layer2caches[name].append(centry)
+    return (cfg,layer2caches)
+
+  def _getConfigName(self,isOffline):
+    return self.normalConfig if not isOffline else self.offlineConfig
+
+  def createConfigAndMappings(self,isOffline=False):
+    (cfg,mappings)=self.parseAndCheckConfig(offline=isOffline)
+    outname=self._getConfigName(isOffline)
+    tmpname=outname+".tmp"
+    with open(tmpname,"w") as fh:
+      yaml.safe_dump(cfg,fh)
+      fh.close()
+    try:
+      os.replace(tmpname,outname)
+    finally:
+      try:
+        os.unlink(tmpname)
+      except:
+        pass
+    self.layerMappings=mappings
+
+
+  def createProxy(self,changedOnly=False,isOffline=False):
     if self.mapproxy is None or self.configTimeStamp is None:
       changedOnly=False
     if not os.path.exists(self.configFile):
@@ -114,11 +239,11 @@ class MapProxyWrapper(object):
     self.fatalError = None
     self.mapproxy = None
     self.configTimeStamp=st.st_mtime
-    self.logger.log("creating mapproxy wsgi app with config %s", self.configFile)
+    self.logger.log("creating mapproxy wsgi app with config %s", self._getConfigName(isOffline))
     try:
-      self.mapproxy = make_wsgi_app(self.configFile, ignore_config_warnings=False, reloader=False)
+      self.createConfigAndMappings(isOffline)
+      self.mapproxy = make_wsgi_app(self._getConfigName(isOffline), ignore_config_warnings=True, reloader=False)
       self.getFatalError(True)
-      self._readMappings()
     except Exception as e:
       self.layerMappings={}
       self.logger.error("unable to create mapProxy: %s",traceback.format_exc())
@@ -192,43 +317,6 @@ class MapProxyWrapper(object):
   def getMappings(self):
     return self.layerMappings
 
-
-  def _readMappings(self,raiseError=False):
-    from mapproxy.config.loader import load_configuration_file
-    config = {}
-    if not os.path.exists(self.configFile):
-      return {}
-    dir = os.path.dirname(self.configFile)
-    fname = os.path.basename(self.configFile)
-    try:
-      config = load_configuration_file([fname], dir)
-    except Exception as e:
-      self.logger.debug("Error reading config from %s: %s", self.configFile, traceback.format_exc())
-      if raiseError:
-        raise
-    layer2caches = {}
-    layers = config.get('layers')
-    caches = config.get('caches')
-    if layers is not None and caches is not None:
-      layerlist = []
-      if isinstance(layers, list):
-        layerlist = layers
-      else:
-        for k, v in layers.items():
-          v['name'] = k
-        layerlist = list(layers.values())
-      for layer in layerlist:
-        name = layer.get('name')
-        sources = layer.get('sources', [])
-        if name is None:
-          continue
-        for s in sources:
-          if s in caches:
-            if layer2caches.get(name) is None:
-              layer2caches[name] = []
-            layer2caches[name].append(s)
-    self.layerMappings=layer2caches
-    return self.layerMappings
 
   def _getWsgiEnv(self, handler):
       server_version = "WSGIServer/0.2"

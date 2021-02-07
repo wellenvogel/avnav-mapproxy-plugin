@@ -225,6 +225,21 @@ class Plugin:
       return []
     return rt
 
+  def _getCacheFile(self,cacheName,checkExistance=False):
+    for c in self.layer2caches.values():
+      if c.get('name') == cacheName:
+        cfg=c.get('cache')
+        if cfg is None:
+          continue
+        if cfg.get('type') == 'mbtiles' and cfg.get('filename') is not None:
+          name=cfg.get('filename')
+          if not os.path.isabs(name):
+            name=os.path.join(self.dataDir,'cache_data',name)
+          if not checkExistance:
+            return name
+          if os.path.exists(name):
+            return name
+
   def run(self):
     """
     the run method
@@ -327,6 +342,7 @@ class Plugin:
         return None
       raise MissingParameterException(name)
     return data[0]
+
   def handleApiRequest(self,url,handler,args):
     """
     handler for API requests send from the JS
@@ -363,10 +379,11 @@ class Plugin:
           if caches is None:
             return {'status':'no caches found for layer %s'%layerName}
           seedName = "seed-" + datetime.now().strftime('%Y%m%d-%H%M%s')
-          (numTiles, seeds) = seedCreator.createSeed(outname, seedName, caches, logger=self.api)
+          cacheNames=list(map(lambda x:x['name'],caches))
+          (numTiles, seeds) = seedCreator.createSeed(outname, seedName, cacheNames, logger=self.api)
           if numTiles > self.maxTiles:
             return {'status':'number of tiles %d larger then allowed %s'%(numTiles,self.maxTiles)}
-          self.seedRunner.runSeed(seeds, caches,selectionName=self._safeName(name))
+          self.seedRunner.runSeed(seeds, cacheNames,selectionName=self._safeName(name))
           return {'status':'OK','numTiles':numTiles}
         return {'status':'OK'}
 
@@ -441,6 +458,24 @@ class Plugin:
       handler.close_connection=True
       shutil.copyfileobj(fh,handler.wfile)
       return True
+
+    if url == 'getCacheFile':
+      name=self._getRequestParam(args,'name')
+      fileName=self._getCacheFile(name,checkExistance=True)
+      if fileName is None:
+        raise Exception("cacvhe file for %s not found"%name)
+      with open(fileName,'rb') as fh:
+        handler.send_response(200, "OK")
+        handler.send_header('Content-Type', 'application/octet-stream')
+        handler.send_header("Last-Modified", handler.date_time_string())
+        handler.send_header('Content-Disposition',
+                           'attachment;filename="%s.mbtiles"'%name)
+        st=os.stat(fileName)
+        handler.send_header('Content-Length',str(st.st_size))
+        handler.end_headers()
+        shutil.copyfileobj(fh,handler.wfile)
+      return True
+
     if url == 'getBoxes':
       try:
         nelat = float(self._getRequestParam(args, 'nelat'))

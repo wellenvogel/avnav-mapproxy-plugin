@@ -178,6 +178,7 @@ export const buildSelect=(parent,list,changeHandler)=>{
     if (!parent) return;
     if (typeof(parent) === 'string') parent=document.querySelector(parent);
     if (!parent) return;
+    parent.innerHTML='';
     let select = document.createElement('select');
     select.addEventListener('change',(ev)=>changeHandler(ev));
     for (let lname in list) {

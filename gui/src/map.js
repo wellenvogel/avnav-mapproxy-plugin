@@ -307,7 +307,10 @@ export default class SeedMap{
                             value:lname,
                             selected: first
                         });
-                        if (first) this.map.addLayer(layer);
+                        if (first) {
+                            this.map.addLayer(layer);
+                            this.selectedLayer=lname;
+                        }
                         first=false;
                     }
                     buildSelect(listParent,selectList,(ev)=>{
