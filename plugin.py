@@ -226,19 +226,20 @@ class Plugin:
     return rt
 
   def _getCacheFile(self,cacheName,checkExistance=False):
-    for c in self.layer2caches.values():
-      if c.get('name') == cacheName:
-        cfg=c.get('cache')
-        if cfg is None:
-          continue
-        if cfg.get('type') == 'mbtiles' and cfg.get('filename') is not None:
-          name=cfg.get('filename')
-          if not os.path.isabs(name):
-            name=os.path.join(self.dataDir,'cache_data',name)
-          if not checkExistance:
-            return name
-          if os.path.exists(name):
-            return name
+    for clist in self.layer2caches.values():
+      for c in clist:
+        if c.get('name') == cacheName:
+          cfg=c.get('cache')
+          if cfg is None:
+            continue
+          if cfg.get('type') == 'mbtiles' and cfg.get('filename') is not None:
+            name=cfg.get('filename')
+            if not os.path.isabs(name):
+              name=os.path.join(self.dataDir,'cache_data',name)
+            if not checkExistance:
+              return name
+            if os.path.exists(name):
+              return name
 
   def run(self):
     """
@@ -467,7 +468,7 @@ class Plugin:
       name=self._getRequestParam(args,'name')
       fileName=self._getCacheFile(name,checkExistance=True)
       if fileName is None:
-        raise Exception("cacvhe file for %s not found"%name)
+        raise Exception("cache file for %s not found"%name)
       with open(fileName,'rb') as fh:
         handler.send_response(200, "OK")
         handler.send_header('Content-Type', 'application/octet-stream')

@@ -184,6 +184,38 @@ import {
         deleteSelection:deleteSelection,
         startSeed: startSeed
     }
+    let buildLayerInfo=(layer)=>{
+        let lf=document.createElement('div');
+        lf.classList.add('layerInfo');
+        let el=document.createElement('span');
+        el.classList.add('label');
+        el.textContent='Layer:'
+        lf.appendChild(el);
+        el=document.createElement('span');
+        el.classList.add('value');
+        el.textContent=layer.name;
+        lf.appendChild(el);
+        let caches=layer.caches;
+        if (caches){
+            for (let cname in caches){
+                let cache=caches[cname];
+                let ccfg=cache.cache ||{};
+                if (ccfg && ccfg.type === 'mbtiles' && ccfg.filename){
+                    el=document.createElement('a');
+                    el.classList.add('cacheDownload');
+                    el.setAttribute('href',base+'/api/getCacheFile?name='+encodeURIComponent(cache.name));
+                    el.textContent=cache.name;
+                }
+                else{
+                    el=document.createElement('span');
+                    el.classList.add('cacheName');
+                    el.textContent=cache.name;
+                }
+                lf.appendChild(el);
+            }
+        }
+        return lf;
+    }
     let updateLayers=()=>{
         if (activeTab === 'downloadtab') {
             map.loadLayers('#layerList');
@@ -202,17 +234,7 @@ import {
                         if (! data.data) return;
                         for (let i in data.data){
                             let layer=data.data[i];
-                            let lf=document.createElement('div');
-                            lf.classList.add('layerInfo');
-                            let ln=document.createElement('span');
-                            ln.classList.add('label');
-                            ln.textContent='Layer:'
-                            lf.appendChild(ln);
-                            ln=document.createElement('span');
-                            ln.classList.add('value');
-                            ln.textContent=layer.name;
-                            lf.appendChild(ln);
-                            parent.appendChild(lf);
+                            parent.appendChild(buildLayerInfo(layer));
                         }
                     })
                     .catch((e) => showError(e));

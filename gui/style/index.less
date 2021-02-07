@@ -187,12 +187,30 @@ iframe.demoFrame {
     #stopSeed{
         display:none;
     }
+    .layerInfo {
+        display: flex;
+        align-items: center;
+        margin-bottom: 0.3em;
+        flex-wrap: wrap;
+        .cacheDownload{
+            margin-left: 1em;
+            background-color: #d3d3d38f;
+            padding: 0.3em;
+            border-radius: 5%;
+            border: 1px solid #80808066;
+            text-decoration: none;
+            text-decoration-color: unset;
+            color: unset;
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+        .cacheName{
+            margin-left: 1em;
+        }
+    }
     #statusLayers {
         flex-direction: column;
         align-items: flex-start;
-        .value {
-            margin-left: 2.5em;
-        }
     }
 }
 
