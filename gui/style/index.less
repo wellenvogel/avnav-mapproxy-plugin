@@ -102,6 +102,8 @@ iframe.demoFrame {
             @media (max-width: @smallBreak){
                 flex-direction: row;
                 flex-wrap: wrap;
+                align-items: center;
+                margin-bottom: 0.2em;
             }
         }
         .seedStatusFrame {
@@ -137,9 +139,44 @@ iframe.demoFrame {
             word-break: break-word;
         }
     }
+    #layerList{
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        @media(max-width: @smallBreak){
+            display: unset;
+        }
+        select {
+            font-size: 1em;
+            padding: 0.3em;
+            margin-bottom: 1em;
+            margin-left: 0.2em;
+            @media (max-width: @smallBreak) {
+                margin-bottom: unset;
+                margin-top: 0.5em;
+                margin-left: unset;
+                min-width: 14em;
+            }
+        }
+    }
+    #reloadTime {
+        flex: 1;
+        display: flex;
+        flex-direction: row;
+        select {
+            font-size: 1em;
+            padding: 0.3em;
+            flex: 1;
+        }
+    }
 
 }
-
+.smallOnly{
+    display: none !important;
+    @media(max-width: @smallBreak){
+        display:unset !important;
+    }
+}
 #statustab{
     button{
         width: 4em;
@@ -182,6 +219,7 @@ iframe.demoFrame {
         display: block;
         @media(max-width: @smallBreak){
             display: inline-block;
+            text-align: end;
         }
     }
 }
@@ -202,6 +240,10 @@ button {
 .row {
     display: flex;
     align-items: center;
+    margin-bottom: 0.3em;
+    @media(max-width: @smallBreak){
+        margin-bottom: unset;
+    }
 }
 
 .state {

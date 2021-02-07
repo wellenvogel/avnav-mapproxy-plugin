@@ -25,7 +25,7 @@ import 'leaflet/dist/leaflet.css';
 import 'leaflet-draw/dist/leaflet.draw.css';
 import L from 'leaflet';
 import 'leaflet-draw';
-import {apiRequest, forEach, setTextContent, showError, showToast} from "./util";
+import {apiRequest, buildSelect, forEach, setTextContent, showError, showToast} from "./util";
 export const getTileFromLatLon=(map,latLong,zoom)=>{
     let projected=map.project(latLong,zoom);
     let ts=L.point(256,256);
@@ -281,7 +281,7 @@ export default class SeedMap{
         this.updateTileCount();
     }
 
-    loadLayers(listParentId) {
+    loadLayers(listParent) {
         for (let k in this.layers) {
             this.map.removeLayer(this.layers[k]);
         }
@@ -295,46 +295,32 @@ export default class SeedMap{
                     layer.addTo(this.map);
                 }
                 if (resp && resp.data) {
-                    let layerList = document.getElementById(listParentId);
-                    if (layerList) {
-                        layerList.innerText = '';
-                        let first = true;
-                        for (let lname in resp.data) {
-                            if (lname === 'base') continue;
-                            let lconfig = resp.data[lname];
-                            let item = document.createElement('div');
-                            item.classList.add('layerSelect');
-                            let rb = document.createElement('input');
-                            rb.setAttribute('type', 'radio');
-                            rb.setAttribute('name', 'layer');
-                            if (first) {
-                                rb.checked = true;
-                                this.selectedLayer = lname;
-                            }
-                            let layer = L.tileLayer(lconfig.url + '/{z}/{x}/{y}.png');
-                            this.layers[lname] = layer;
-                            if (first) this.map.addLayer(layer);
-                            rb.setAttribute('value', lname);
-                            rb.addEventListener('change', ()=> {
-                                forEach(layerList.querySelectorAll('input[type="radio"]'),
-                                    (el) => {
-                                        let layer = this.layers[el.getAttribute('value')];
-                                        if (layer) {
-                                            if (el.checked) {
-                                                this.map.addLayer(layer);
-                                                this.selectedLayer = el.getAttribute('value');
-                                            } else this.map.removeLayer(layer);
-                                        }
-                                    })
-                            });
-                            first = false;
-                            item.appendChild(rb);
-                            let label = document.createElement('span');
-                            label.innerText = lconfig.name;
-                            item.appendChild(label);
-                            layerList.appendChild(item);
-                        }
+                    let selectList=[];
+                    let first=true;
+                    for (let lname in resp.data) {
+                        if (lname === 'base') continue;
+                        let lconfig = resp.data[lname];
+                        let layer = L.tileLayer(lconfig.url + '/{z}/{x}/{y}.png');
+                        this.layers[lname] = layer;
+                        selectList.push({
+                            label:lname,
+                            value:lname,
+                            selected: first
+                        });
+                        if (first) this.map.addLayer(layer);
+                        first=false;
                     }
+                    buildSelect(listParent,selectList,(ev)=>{
+                        let select=ev.target;
+                        let selectedLayer=select.options[select.selectedIndex].value;
+                        if (! selectedLayer) return;
+                        let layer=this.layers[selectedLayer];
+                        if (! layer) return;
+                        let old=this.layers[this.selectedLayer];
+                        this.selectedLayer=selectedLayer;
+                        if (old) this.map.removeLayer(old);
+                        this.map.addLayer(layer);
+                    });
                 }
                 this.map.invalidateSize();
             })

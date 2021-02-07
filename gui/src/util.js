@@ -21,6 +21,8 @@
 #  DEALINGS IN THE SOFTWARE.
 ###############################################################################
 */
+import L from "leaflet";
+
 export const forEach = function (array, callback) {
     for (let i = 0; i < array.length; i++) {
         callback(array[i]);
@@ -170,5 +172,22 @@ export const showToast=(text,error)=>{
         else el.classList.remove('error');
     })
     showHideOverlay('toast',true);
+}
+
+export const buildSelect=(parent,list,changeHandler)=>{
+    if (!parent) return;
+    if (typeof(parent) === 'string') parent=document.querySelector(parent);
+    if (!parent) return;
+    let select = document.createElement('select');
+    select.addEventListener('change',(ev)=>changeHandler(ev));
+    for (let lname in list) {
+        let entry=list[lname];
+        let o = document.createElement('option');
+        o.setAttribute('value', entry.value);
+        o.textContent = entry.label||entry.name;
+        if (entry.selected) o.selected = true;
+        select.appendChild(o);
+    }
+    parent.appendChild(select);
 }
 

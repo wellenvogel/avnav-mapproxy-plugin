@@ -34,7 +34,7 @@ import {
     showHideOverlay,
     setCloseOverlayActions,
     showSelectOverlay,
-    setStateDisplay, setTextContent, apiRequest, showError, forEachEl, getDateString, showToast
+    setStateDisplay, setTextContent, apiRequest, showError, forEachEl, getDateString, showToast, buildSelect
 } from "./util";
 (function(){
     let activeTab=undefined;
@@ -43,6 +43,7 @@ import {
     let flask;
     let ignoreNextChanged=false;
     let lastSequence=undefined;
+    let reloadDays=undefined;
     let codeChanged=function(changed){
         buttonEnable('saveEditOverlay',changed && ! ignoreNextChanged);
         ignoreNextChanged=false;
@@ -91,6 +92,9 @@ import {
             "&name="+encodeURIComponent(name);
         if (seedFor){
             url+="&startSeed="+encodeURIComponent(map.getSelectedLayer());
+            if (reloadDays !== undefined){
+                url+="&reloadDays="+encodeURIComponent(reloadDays);
+            }
         }
         apiRequest(base,url
         )
@@ -181,7 +185,7 @@ import {
     }
     let updateLayers=()=>{
         if (activeTab === 'downloadtab') {
-            map.loadLayers('layerFrame');
+            map.loadLayers('#layerList');
             let sb=document.getElementById('showBoxes');
             if (sb){
                 map.setShowBoxes(sb.checked);
@@ -267,6 +271,20 @@ import {
                 })
             });
         setCloseOverlayActions();
+        let reloadSelect=[
+            {label:'never',value:undefined,selected:true},
+            {label: '1 year',value:360},
+            {label: '6 month', value: 180},
+            {label: '3 month',value: 90},
+            {label: '4 weeks',value:28},
+            {label: '1 week',value:7},
+            {label: '1 day',value:1},
+            {label: 'all',value:0}
+        ]
+        buildSelect('#reloadTime',reloadSelect,(ev)=>{
+            let v=ev.target.options[ev.target.selectedIndex].value;
+            reloadDays=v;
+        });
         flask=new CodeFlask('#editOverlay .overlayContent',{
             language: 'yaml',
             lineNumbers: true,
