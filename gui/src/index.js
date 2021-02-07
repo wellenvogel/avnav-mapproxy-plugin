@@ -201,9 +201,13 @@ import {
                 let cache=caches[cname];
                 let ccfg=cache.cache ||{};
                 if (ccfg && ccfg.type === 'mbtiles' && ccfg.filename){
-                    el=document.createElement('a');
+                    el=document.createElement('div');
                     el.classList.add('cacheDownload');
-                    el.setAttribute('href',base+'/api/getCacheFile?name='+encodeURIComponent(cache.name));
+                    el.setAttribute('data-href',base+'/api/getCacheFile?name='+encodeURIComponent(cache.name));
+                    el.addEventListener('click',(ev)=>{
+                        let url=ev.target.getAttribute('data-href');
+                        document.getElementById('downloadFrame').setAttribute('src',url);
+                    })
                     el.textContent=cache.name;
                 }
                 else{
@@ -299,6 +303,17 @@ import {
         if (sb){
             sb.addEventListener('change',(ev)=>{
                map.setShowBoxes(ev.target.checked);
+            });
+        }
+        let downloadFrame=document.getElementById('downloadFrame');
+        if (downloadFrame){
+            //if our download frame finishes laading this must be an error...
+            downloadFrame.addEventListener('load',(e)=>{
+                let etxt=undefined;
+                try{
+                    etxt=e.target.contentDocument.body.textContent;
+                }catch (e){}
+                showError((etxt !== undefined)?etxt.replace("\n"," "):"unable to download");
             });
         }
         forEachEl('button',(bt)=> {
