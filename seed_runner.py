@@ -21,6 +21,7 @@
 ###############################################################################
 import datetime
 import os
+import signal
 import subprocess
 import sys
 import threading
@@ -134,12 +135,14 @@ class SeedRunner(object):
                                  __file__,
                                  '-s', self._currentConfig(),
                                  '-f',self.configFile,
+                                 '-c','1',
                                  '--progress-file', self._progressFile(),
                                    '--continue'],
                                   env=env,
                                   stdout=loghandle,
                                   stderr=subprocess.STDOUT,
-                                  stdin=subprocess.DEVNULL)
+                                  stdin=subprocess.DEVNULL,
+                                  preexec_fn=os.setsid)
       self._writeInfoFile()
       self.seedStatus=self.STATE_RUNNING
       self.info="started at %s"%self._nowTs()
@@ -193,7 +196,8 @@ class SeedRunner(object):
         self.info="seed stopped while paused"
       return False
     self.pause=setPaused
-    child.kill()
+    pgrp = os.getpgid(self.child.pid)
+    os.killpg(pgrp, signal.SIGINT)
     wt=10
     while wt > 0:
       if not self.checkRunning():
@@ -327,6 +331,7 @@ if __name__ == '__main__':
         print("parent pid %d not available any more, stopping" % parentPid)
         sys.exit(1)
       if not seedMain.isAlive():
+        print("main thread stopped, exiting")
         sys.exit(seedMain.status)
       time.sleep(0.5)
   else:
