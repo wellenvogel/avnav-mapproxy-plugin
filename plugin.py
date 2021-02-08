@@ -133,7 +133,7 @@ class Plugin:
         {
           'name': 'maxTiles',
           'description': 'max allowed tiles for one seed',
-          'default': 100000
+          'default': 200000
         },
         {
           'name': 'networkMode',
@@ -369,6 +369,11 @@ class Plugin:
       except Exception as e:
         self.api.setStatus('ERROR','unable to create mapproxy with config %s: %s'%
                            (configFile,str(e)))
+      if restartProxy:
+        if self.networkAvailable:
+          self.seedRunner.checkRestart() #could have been paused
+        else:
+          self.seedRunner.killRun(setPaused=True)
       try:
         if self.seedRunner is not None:
           self.seedRunner.checkRunning()
@@ -443,6 +448,8 @@ class Plugin:
         data=self._getRequestParam(args,'data')
         name=self._getRequestParam(args,'name')
         startSeed=self._getRequestParam(args,'startSeed',raiseMissing=False)
+        if startSeed is not None and not self.networkAvailable:
+          return {'status':'cannot start seed without network'}
         outname=self._getSelectionFile(name)
         decoded=json.loads(data)
         with open(outname,"w") as oh:

@@ -388,8 +388,9 @@ import {
                         "sequence "+parseInt(data.sequence):'');
                     setTextContent('.proxyError',mapproxy.lastError);
 
-                    buttonEnable('startSeed',seedStatus !== 'running' && canSave);
-                    buttonEnable('killSeed',seedStatus === 'running');
+                    buttonEnable('startSeed',seedStatus !== 'running' && canSave
+                        && ! seed.paused && data.networkAvailable);
+                    buttonEnable('killSeed',seedStatus === 'running' || seed.paused);
                     buttonEnable('showLog',seed.logFile);
                     changeRadio(networkModeSt,data.networkMode);
                     changeRadio(networkModeDl,data.networkMode);

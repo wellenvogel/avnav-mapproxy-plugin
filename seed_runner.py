@@ -32,6 +32,9 @@ import yaml
 class OtherRunningException(Exception):
   def __init__(self):
     super().__init__('another seed is already running')
+class PausedException(Exception):
+  def __init__(self):
+    super().__init__('cannot start a new seed while paused')
 ENV_PID='AVNAV_PARENT_PID'
 class SeedRunner(object):
   STATE_RUNNING="running"
@@ -42,6 +45,7 @@ class SeedRunner(object):
   LAST_CONFIG="last_seed.yaml"
   PROGRESS_FILE="progress"
   LOGFILE="seed.log"
+  INFOFILE="info.yaml"
   def __init__(self,workdir,configFile,logHandler=None,cleanupTime=5*3600*24):
     self.workdir=workdir
     if not os.path.isdir(workdir):
@@ -55,8 +59,9 @@ class SeedRunner(object):
     self.info=""
     self.logHandler=logHandler
     self.currentLog=None
-    self.seedName=None
+    self.cacheNames=None
     self.selectionName=None
+    self.pause=False
 
   def logDebug(self,fmt,*args):
     if (self.logHandler):
@@ -77,12 +82,36 @@ class SeedRunner(object):
     return os.path.join(self.workdir,self.CURRENT_CONFIG)
   def _progressFile(self):
     return os.path.join(self.workdir,self.PROGRESS_FILE)
+  def _infoFile(self):
+    return os.path.join(self.workdir,self.INFOFILE)
   def _logFile(self):
     suffix=self._nowTs(True)
     return os.path.join(self.workdir,self.LOGFILE+"."+suffix)
+  def _writeInfoFile(self):
+    info={
+      'selection':self.selectionName,
+      'caches': self.cacheNames or []
+    }
+    try:
+      with open(self._infoFile(),"w") as fh:
+        yaml.safe_dump(info,fh)
+    except Exception as e:
+      pass
+
+  def _readFromInfo(self):
+    try:
+      with open(self._infoFile(), "r") as fh:
+        info=yaml.safe_load(fh)
+        self.cacheNames=info.get('caches',[])
+        self.selectionName=info.get('selection','')
+    except Exception as e:
+      pass
+
   def _startSeed(self,newConfig=None):
     self.lock.acquire()
     try:
+      if self.pause:
+        raise PausedException()
       otherStarting=self.currentlyStarting
       if not otherStarting:
         if self.child is not None:
@@ -111,6 +140,7 @@ class SeedRunner(object):
                                   stdout=loghandle,
                                   stderr=subprocess.STDOUT,
                                   stdin=subprocess.DEVNULL)
+      self._writeInfoFile()
       self.seedStatus=self.STATE_RUNNING
       self.info="started at %s"%self._nowTs()
       return True
@@ -138,24 +168,31 @@ class SeedRunner(object):
     '''
     if self.child is not None:
       return False
+    self.pause=False
     if not os.path.exists(self._currentConfig()):
       try:
         os.unlink(self._progressFile())
       except:
         pass
       return False
+    self._readFromInfo()
     return self._startSeed()
-  def runSeed(self,seedConfig,name=None,selectionName=None):
+  def runSeed(self,seedConfig,cacheNames=None,selectionName=None):
     if self.checkRunning():
       raise OtherRunningException()
-    self.seedName=name
+    self.cacheNames=cacheNames
     self.selectionName=selectionName
     self._startSeed(seedConfig)
 
-  def killRun(self):
+  def killRun(self,setPaused=False):
     child=self.child
     if child is None:
+      if self.pause and not setPaused:
+        self._cleanupFiles()
+        self.pause=False
+        self.info="seed stopped while paused"
       return False
+    self.pause=setPaused
     child.kill()
     wt=10
     while wt > 0:
@@ -164,6 +201,25 @@ class SeedRunner(object):
       time.sleep(0.1)
       wt-=1
     raise Exception("unable to stop")
+
+  def _cleanupFiles(self):
+    try:
+      os.replace(self._currentConfig(), os.path.join(self.workdir, self.LAST_CONFIG))
+    except:
+      pass
+    try:
+      os.unlink(self._currentConfig())
+    except:
+      pass
+    try:
+      os.unlink(self._progressFile())
+    except:
+      pass
+    try:
+      os.unlink(self._infoFile())
+    except:
+      pass
+
 
   def checkRunning(self):
     '''
@@ -177,28 +233,25 @@ class SeedRunner(object):
     rt=self.child.poll()
     if rt is None:
       return True
-    self.logInfo("seed finished with status %d",rt)
+    if self.pause:
+      self.logInfo("seed paused")
+    else:
+      self.logInfo("seed finished with status %d",rt)
     self.lock.acquire()
     try:
-      try:
-        os.replace(self._currentConfig(),os.path.join(self.workdir,self.LAST_CONFIG))
-      except:
-        pass
-      try:
-        os.unlink(self._currentConfig())
-      except:
-        pass
-      try:
-        os.unlink(self._progressFile())
-      except:
-        pass
+      if not self.pause:
+        self._cleanupFiles()
       self.child=None
-      if rt == 0:
-        self.seedStatus=self.STATE_OK
-        self.info="seed finished at %s"%self._nowTs()
+      if self.pause:
+        self.seedStatus=self.STATE_INACTIVE
+        self.info="seed paused"
       else:
-        self.seedStatus=self.STATE_ERROR
-        self.info="seed returned with state %d at %s"%(rt,self._nowTs())
+        if rt == 0:
+          self.seedStatus=self.STATE_OK
+          self.info="seed finished at %s"%self._nowTs()
+        else:
+          self.seedStatus=self.STATE_ERROR
+          self.info="seed returned with state %d at %s"%(rt,self._nowTs())
     finally:
       self.lock.release()
     self.cleanupLogs()
@@ -208,8 +261,9 @@ class SeedRunner(object):
     return {
       'status':self.seedStatus,
       'info':self.info,
-      'name':self.seedName,
+      'name':self.cacheNames,
       'selection': self.selectionName,
+      'paused':self.pause,
       'logFile':os.path.basename(self.currentLog) if self.currentLog is not None else None
     }
 
