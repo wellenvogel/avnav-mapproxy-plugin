@@ -1,9 +1,9 @@
 {
-  "name": "react-starter",
+  "name": "avnva-mapproxy-plugin",
   "version": "1.0.0",
-  "description": "react starter",
+  "description": "mapproxy plugin for AvNav",
   "main": "index.js",
-  "homepage": "https://xxx",
+  "homepage": "https://github.com/wellenvogel/avnav-mapproxy-plugin",
   "scripts": {
     "server": "webpack serve --config ./webpack.debug.js --mode development",
     "watch": "webpack --config ./webpack.debug.js --watch --progress",
