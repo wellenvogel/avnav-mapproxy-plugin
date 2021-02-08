@@ -205,14 +205,17 @@ import {
         lf.classList.add('layerInfo');
         let el=document.createElement('span');
         el.classList.add('label');
-        el.textContent='Layer:'
+        el.textContent='Layer'
         lf.appendChild(el);
         el=document.createElement('span');
         el.classList.add('value');
-        el.textContent=layer.name;
+        el.textContent=(layer.name||'').replace(/^mp-/,'');
         lf.appendChild(el);
         let caches=layer.caches;
         if (caches){
+            let cf=document.createElement('div');
+            cf.classList.add('cacheDownloadFrame');
+            lf.appendChild(cf);
             for (let cname in caches){
                 let cache=caches[cname];
                 let ccfg=cache.cache ||{};
@@ -224,14 +227,14 @@ import {
                         let url=ev.target.getAttribute('data-href');
                         document.getElementById('downloadFrame').setAttribute('src',url);
                     })
-                    el.textContent=cache.name;
+                    el.textContent=(cache.name||'');
                 }
                 else{
                     el=document.createElement('span');
                     el.classList.add('cacheName');
                     el.textContent=cache.name;
                 }
-                lf.appendChild(el);
+                cf.appendChild(el);
             }
         }
         return lf;
