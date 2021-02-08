@@ -158,6 +158,10 @@ export default class SeedMap{
     constructor(mapdiv,apiBase,showBoxes) {
         this.updateTileCount=this.updateTileCount.bind(this);
         this.mapdiv=mapdiv;
+        this.boxesTimer=undefined;
+        this.boxesSequence=1;
+        this.boxesTimeout=500; //mms to wait for boxes update
+        this.inZoom=false;
         this.apiBase=apiBase;
         this.showBoxes=showBoxes;
         this.map=L.map('map').setView([54,13],6);
@@ -182,7 +186,7 @@ export default class SeedMap{
             }
         })
         this.drawPane=this.map.createPane('selections');
-        this.drawPane.style.zIndex=900;
+        this.drawPane.style.zIndex=450; //between overlay and marker
         this.drawnItems=new L.FeatureGroup([],{pane:'selections'});
         this.map.addLayer(this.drawnItems);
         this.selectedLayer=undefined;
@@ -212,13 +216,17 @@ export default class SeedMap{
         });
         this.map.on(L.Draw.Event.DELETED,this.updateTileCount);
         this.map.on(L.Draw.Event.EDITED,this.updateTileCount);
+        this.map.on('zoomstart',()=>this.inZoom=true)
         this.map.on('zoomend',()=>{
+            this.inZoom=false;
             this.getBoxes();
         })
-        this.map.on('moveend',()=>this.getBoxes());
+        this.map.on('moveend',()=>{
+            if (this.inZoom) return;
+            this.getBoxes()
+        });
         this.map.on('loadend',()=>this.getBoxes())
         this.map.on('draw:created',(e)=>{
-            console.log("created "+e);
             e.layer.addEventParent(this.boxesLayer);
         })
     }
@@ -357,41 +365,52 @@ export default class SeedMap{
             this.boxesLayer.clearLayers();
             return;
         }
-        let bound=this.map.getBounds();
-        let url=this.apiBase+"/api/getBoxes?nelat="+encodeURIComponent(bound.getNorthEast().lat)+
-            "&nelng="+encodeURIComponent(bound.getNorthEast().lng)+
-            "&swlat="+encodeURIComponent(bound.getSouthWest().lat)+
-            "&swlng="+encodeURIComponent(bound.getSouthWest().lng);
-        let z=this.map.getZoom();
-        let minZoom=z-4;
-        if (minZoom < 0) minZoom=0;
-        let maxZoom=z+6;
-        url+="&minZoom="+encodeURIComponent(minZoom)+
-            "&maxZoom="+encodeURIComponent(maxZoom);
-        fetch(url)
-            .then((r)=>r.text())
-            .then((boxes)=>{
-                this.boxesLayer.clearLayers();
-                boxes=boxes.split("\n");
-                boxes.forEach((box)=>{
-                    let parts=box.split(/  */);
-                    if (parts.length !== 6) return;
-                    let zoom=parseInt(parts[1]);
-                    let name=parts[0];
-                    let rect=L.rectangle([
-                        L.latLng(parseFloat(parts[2]),parseFloat(parts[3])),
-                        L.latLng(parseFloat(parts[4]),parseFloat(parts[5]))
-                    ],getBoxStyle(zoom));
-                    rect.avzoom=zoom;
-                    rect.avname=name;
-                    /*
-                    rect.on('click',()=>{
-                        showToast(name+", zoom="+zoom);
-                    })*/
-                    this.boxesLayer.addLayer(rect);
+        this.boxesSequence++;
+        let sequence=this.boxesSequence;
+        if (this.boxesTimer) window.clearTimeout(this.boxesTimer);
+        this.boxesTimer = window.setTimeout(() => {
+            let z = this.map.getZoom();
+            if (z !== Math.floor(z)){
+                this.getBoxes();
+                return;
+            }
+            let bound = this.map.getBounds();
+            let url = this.apiBase + "/api/getBoxes?nelat=" + encodeURIComponent(bound.getNorthEast().lat) +
+                "&nelng=" + encodeURIComponent(bound.getNorthEast().lng) +
+                "&swlat=" + encodeURIComponent(bound.getSouthWest().lat) +
+                "&swlng=" + encodeURIComponent(bound.getSouthWest().lng);
+            let minZoom = z - 4;
+            if (minZoom < 0) minZoom = 0;
+            let maxZoom = z + 6;
+            url += "&minZoom=" + encodeURIComponent(minZoom) +
+                "&maxZoom=" + encodeURIComponent(maxZoom);
+            fetch(url)
+                .then((r) => r.text())
+                .then((boxes) => {
+                    if (sequence !== this.boxesSequence) return;
+                    this.boxesLayer.clearLayers();
+                    boxes = boxes.split("\n");
+                    boxes.forEach((box) => {
+                        let parts = box.split(/  */);
+                        if (parts.length !== 6) return;
+                        let zoom = parseInt(parts[1]);
+                        let name = parts[0];
+                        let rect = L.rectangle([
+                            L.latLng(parseFloat(parts[2]), parseFloat(parts[3])),
+                            L.latLng(parseFloat(parts[4]), parseFloat(parts[5]))
+                        ], getBoxStyle(zoom));
+                        rect.avzoom = zoom;
+                        rect.avname = name;
+                        /*
+                        rect.on('click',()=>{
+                            showToast(name+", zoom="+zoom);
+                        })*/
+                        this.boxesLayer.addLayer(rect);
+                    })
                 })
-            })
-            .catch((e)=>{});
+                .catch((e) => {
+                });
+        }, this.boxesTimeout);
     }
 
 }
