@@ -20,6 +20,7 @@
 #  DEALINGS IN THE SOFTWARE.
 ###############################################################################
 import datetime
+import importlib.util
 import os
 import signal
 import subprocess
@@ -29,6 +30,16 @@ import time
 
 import yaml
 
+def loadModuleFromFile(fileName):
+  if not os.path.isabs(fileName):
+    fileName=os.path.join(os.path.dirname(__file__),fileName)
+  moduleName=os.path.splitext(os.path.basename(fileName))[0]
+  # see https://docs.python.org/3/library/importlib.html#module-importlib
+  spec = importlib.util.spec_from_file_location(moduleName, fileName)
+  module = importlib.util.module_from_spec(spec)
+  spec.loader.exec_module(module)
+  sys.modules[moduleName] = module
+  return module
 
 class OtherRunningException(Exception):
   def __init__(self):
@@ -36,6 +47,9 @@ class OtherRunningException(Exception):
 class PausedException(Exception):
   def __init__(self):
     super().__init__('cannot start a new seed while paused')
+
+injector=loadModuleFromFile('injector.py')
+
 ENV_PID='AVNAV_PARENT_PID'
 class SeedRunner(object):
   STATE_RUNNING="running"
@@ -317,6 +331,27 @@ class SeedMain(object):
 if __name__ == '__main__':
   #we run mapproxy seed
   #if we have an ENV_PID in the environment we exit if this pid is not available
+  cfgFile=None
+  seedFile=None
+  lastFlag=None
+  for arg in sys.argv[1:]:
+    if arg == '-f' or arg == '-s':
+      lastFlag=arg
+      continue
+    if lastFlag == '-f':
+      cfgFile=arg
+    if lastFlag == '-s':
+      seedFile=arg
+    lastFlag=None
+
+  if not cfgFile:
+    print("no parameter -f found",file=sys.stderr)
+    sys.exit(1)
+  if not seedFile:
+    print("no parameter -s found",file=sys.stderr)
+    sys.exit(1)
+  injector=injector.Injector(os.path.dirname(cfgFile))
+  injector.checkCreatedIfNeeded(cfgFile)
   seedMain=SeedMain()
   parentPid=os.environ.get(ENV_PID)
   if parentPid is not None:
@@ -329,6 +364,8 @@ if __name__ == '__main__':
       except:
         # pid not there any more
         print("parent pid %d not available any more, stopping" % parentPid)
+        pgrp = os.getpgid(os.getpid())
+        os.killpg(pgrp, signal.SIGINT)
         sys.exit(1)
       if not seedMain.isAlive():
         print("main thread stopped, exiting")

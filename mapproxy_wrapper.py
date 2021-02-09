@@ -19,17 +19,29 @@
 #  FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 #  DEALINGS IN THE SOFTWARE.
 ###############################################################################
+import importlib.util
 import io
 import logging
 import os
+import sys
 import traceback
 import urllib.parse
 from wsgiref.headers import Headers
 from wsgiref.simple_server import ServerHandler
-
 import yaml
 from mapproxy.wsgiapp import make_wsgi_app
+def loadModuleFromFile(fileName):
+  if not os.path.isabs(fileName):
+    fileName=os.path.join(os.path.dirname(__file__),fileName)
+  moduleName=os.path.splitext(os.path.basename(fileName))[0]
+  # see https://docs.python.org/3/library/importlib.html#module-importlib
+  spec = importlib.util.spec_from_file_location(moduleName, fileName)
+  module = importlib.util.module_from_spec(spec)
+  spec.loader.exec_module(module)
+  sys.modules[moduleName] = module
+  return module
 
+injector=loadModuleFromFile('injector.py')
 
 class OwnWsgiHeaders(Headers):
 
@@ -78,7 +90,10 @@ class OwnLogHandler(logging.Handler):
         logfunction=self.logger.error
       elif level >= logging.INFO:
         logfunction=self.logger.log
-      logfunction("%s: %s",self.PRFX,str(record.msg%record.args or None))
+      if len(record.args) > 0:
+        logfunction("%s: %s",self.PRFX,str(record.msg%record.args or None))
+      else:
+        logfunction("%s: %s", self.PRFX, str(record.msg))
 
   def getFatalError(self,reset=True):
     rt=self.fatalError
@@ -119,6 +134,7 @@ class MapProxyWrapper(object):
     self.fatalError=None
     self.configTimeStamp = None
     self.layerMappings={}
+    self.injector=injector.Injector(os.path.dirname(self.configFile))
 
   def _mergeCfg(self,current,base,isFirstLevel=False):
     for k,v in current.items():
@@ -249,6 +265,7 @@ class MapProxyWrapper(object):
     self.logger.log("creating mapproxy wsgi app with config %s", self.getConfigName(isOffline))
     try:
       self.createConfigAndMappings(isOffline)
+      self.injector.checkCreatedIfNeeded(self.getConfigName(isOffline))
       self.mapproxy = make_wsgi_app(self.getConfigName(isOffline), ignore_config_warnings=True, reloader=False)
       self.getFatalError(True)
     except Exception as e:
