@@ -186,12 +186,17 @@ import {
             .then(()=>{})
             .catch((e)=>showError(e));
     }
+    let downloadLog=()=>{
+        let url=base+"/api/getLog?attach=true";
+        document.getElementById('downloadFrame').setAttribute('src',url)
+    };
     let buttonActions={
         checkEditOverlay: getAndCheckConfig,
         downloadEditOverlay: ()=>downloadConfig(),
         saveEditOverlay: saveConfig,
         editConfig:editConfig,
         showLog: showLog,
+        downloadLog: downloadLog,
         reloadLog: showLog,
         killSeed: stopSeed,
         stopSeed: stopSeed,

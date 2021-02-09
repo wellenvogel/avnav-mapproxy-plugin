@@ -535,13 +535,20 @@ class Plugin:
     except Exception as e:
       return {'status':str(e)}
     if url == 'getLog':
+      asAttach=self._getRequestParam(args,'attach',raiseMissing=False)
       status=self.seedRunner.getStatus()
-      fh=self.seedRunner.getLogFile(status.get('logFile'),100000)
+      seekBytes=100000
+      if asAttach is not None:
+        seekBytes=None
+      fh=self.seedRunner.getLogFile(status.get('logFile'),seekBytes)
       if fh is None:
         raise Exception("no log file")
       handler.send_response(200, "OK")
       handler.send_header('Content-Type', 'text/plain')
       handler.send_header("Last-Modified", handler.date_time_string())
+      if asAttach is not None:
+        handler.send_header('Content-Disposition',
+                            'attachment;filename="%s"' %os.path.basename(status.get('logFile')) )
       handler.end_headers()
       handler.close_connection=True
       shutil.copyfileobj(fh,handler.wfile)

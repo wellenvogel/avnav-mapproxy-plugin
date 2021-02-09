@@ -61,11 +61,11 @@ class SeedRunner(object):
   PROGRESS_FILE="progress"
   LOGFILE="seed.log"
   INFOFILE="info.yaml"
-  def __init__(self,workdir,configFile,logHandler=None,cleanupTime=5*3600*24):
+  def __init__(self,workdir,configFile,logHandler=None,keepLogs=20):
     self.workdir=workdir
     if not os.path.isdir(workdir):
       raise Exception("workdir %s does not exist"%workdir)
-    self.cleanupTime=cleanupTime
+    self.keepLogs=keepLogs
     self.child=None
     self.configFile=configFile
     self.currentlyStarting=False
@@ -165,18 +165,16 @@ class SeedRunner(object):
       self.currentlyStarting=False
 
   def cleanupLogs(self):
-    cleanupTime=time.time()-self.cleanupTime
-    for l in os.listdir(self.workdir):
-      if not l.startswith(self.LOGFILE):
-        continue
+    logs=list(filter(lambda e: e.startswith(self.LOGFILE),os.listdir(self.workdir)))
+    logs.sort()
+    logs=logs[0:-self.keepLogs]
+    for l in logs:
       fn=os.path.join(self.workdir,l)
-      st=os.stat(fn)
-      if st.st_mtime < cleanupTime:
-        try:
-          self.logInfo("removing seed log %s",fn)
-          os.unlink(fn)
-        except:
-          pass
+      try:
+        self.logInfo("removing seed log %s",fn)
+        os.unlink(fn)
+      except:
+        pass
 
   def checkRestart(self):
     '''
