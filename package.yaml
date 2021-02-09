@@ -22,6 +22,10 @@ license: "MIT"
 contents:
 - src: ./*.py
   dst: /usr/lib/avnav/plugins/mapproxy/
+- src: ./plugin.js
+  dst: /usr/lib/avnav/plugins/mapproxy/plugin.js  
+- src: ./plugin.css
+  dst: /usr/lib/avnav/plugins/mapproxy/plugin.css
 - src: ./*.png
   dst: /usr/lib/avnav/plugins/mapproxy/
 - src: ./gui/build/release/*

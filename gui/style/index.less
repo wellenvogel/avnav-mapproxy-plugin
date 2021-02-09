@@ -1,5 +1,6 @@
 @smallBreak: 1000px;
 @import "spinner";
+@import "../../plugin.css";
 *{
     box-sizing: border-box;
 }
@@ -22,24 +23,7 @@ text {
     font-family: Verdana, Arial, sans-serif;
 }
 
-.blink {
-    animation: blinker 1.7s cubic-bezier(.5, 0, 1, 1) infinite alternate;  
-  }
-@keyframes blinker { to { opacity: 0; } }
 
-.unknown {
-    background-image: radial-gradient(rgba(128, 128, 128,1), rgba(128, 128, 128, 0.6),transparent);
-}
-.ok{
-    background-image: radial-gradient(rgba(10, 240, 10,1), rgba(10, 240, 10, 0.6),transparent);    
-}
-.running{
-    .blink();
-    background-image: radial-gradient(rgb(255, 184, 3), rgb(250, 219, 137),transparent);
-}
-.error{
-    background-image: radial-gradient(rgba(240, 10, 10,1), rgba(240, 10, 10, 0.6),transparent);
-}
 .textError{
     background-color: rgba(246, 2, 2,0.6);
 }
@@ -320,26 +304,6 @@ button {
     width: 6em;
     flex-shrink: 0;
     flex-grow: 0;
-}
-
-
-.statusText{
-    margin: 0.3em;
-    height: 1em;
-    display: inline-block;
-    width: 1em;
-    border-radius: 50%;
-    flex-shrink: 0;
-}
-
-.statusText[data-status="3"] {
-    color:#08080891;
-}
-.statusText[data-status="2"] {
-    color:red;
-}
-.statusText[data-status="1"] {
-    color:green;
 }
 
 .mapframe {

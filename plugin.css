@@ -1,0 +1,63 @@
+.mpStatusText.unknown, .mpStatusText.inactive  {
+    background-image: radial-gradient(rgba(128, 128, 128,1), rgba(128, 128, 128, 0.6),transparent);
+}
+.mpStatusText.ok{
+    background-image: radial-gradient(rgba(10, 240, 10,1), rgba(10, 240, 10, 0.6),transparent);    
+}
+.mpStatusText.running{
+    animation: mpblinker 1.7s cubic-bezier(.5, 0, 1, 1) infinite alternate;  
+    background-image: radial-gradient(rgb(255, 184, 3), rgb(250, 219, 137),transparent);
+}
+
+@keyframes mpblinker { to { opacity: 0; } }
+.mpStatusText.error{
+    background-image: radial-gradient(rgba(240, 10, 10,1), rgba(240, 10, 10, 0.6),transparent);
+}
+
+.mpStatusText{
+    margin: 0.3em;
+    height: 1em;
+    display: inline-block;
+    vertical-align: middle;
+    width: 1em;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.mpLabel {
+    vertical-align: middle;
+    display: inline-block;
+    width: 2.6em;
+    font-size: 0.8em;
+    opacity: 0.8;
+}
+
+.mpState:first-child {
+    margin-top: 0.5em;
+}
+
+.mpWrapper{
+    display: flex;
+    flex-direction: row;
+}
+.mpStateWrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-evenly;
+}
+
+.mpButtons {
+    display: flex;
+    flex-direction: column;
+    margin-top: 0.8em;
+    justify-content: space-evenly;
+}
+.mpButtons button {
+    height: 2.5em;
+    border-color: rgb(38 39 39 / 8%);
+    border-radius: 10%;
+}
+.mpButtons button.selected{
+    background-color: #a7aaaf;
+}
