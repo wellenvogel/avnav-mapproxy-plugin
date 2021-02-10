@@ -319,7 +319,7 @@ class Plugin:
       self.seedRunner.checkRestart()
       # we register an handler for API requestscreateSeed(boundsFile,seedFile,name,cache,logger=None):
       self.api.registerRequestHandler(self.handleApiRequest)
-      self.boxes=seedCreator.Boxes(logHandler=self.api)
+      self.boxes=seedCreator.Boxes(logHandler=self.api,additionalBoxes=True)
       guiPath="gui/index.html"
       testPath=self._getConfigValue('guiPath')
       if testPath is not None:

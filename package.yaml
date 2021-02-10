@@ -34,7 +34,7 @@ contents:
 #  dst: /usr/lib/avnav/plugins/mapproxy/gui/icons
 - src: ./gui/build/release/lib/*
   dst: /usr/lib/avnav/plugins/mapproxy/gui/lib
-- src: ./boxes/*
+- src: ./boxes/*bbox
   dst: /usr/lib/avnav/plugins/mapproxy/boxes
 - src: ./avnav_*.yaml
   dst: /usr/lib/avnav/plugins/mapproxy/

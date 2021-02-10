@@ -162,17 +162,45 @@ class Box(object):
     ydiff=abs(netile[1]-swtile[1])+1
     return xdiff*ydiff
 
+  def getTileList(self,zoomOffset=0):
+    if self.zoom is None or self.zoom < 0:
+      return []
+    zoom=self.zoom+zoomOffset
+    netile = deg2num(self.northeast.lat, self.northeast.lng, zoom)
+    swtile = deg2num(self.southwest.lat, self.southwest.lng, zoom)
+    rt=[]
+    for x in range(swtile[0],netile[0]+1):
+      for y in range(netile[1],swtile[1]+1):
+        rt.append((x,y,zoom))
+    return rt
+
 yaml.add_representer(Box,Box.representYaml,Dumper=yaml.dumper.SafeDumper)
 class Boxes(LogEnabled):
   BOXES=os.path.join(os.path.dirname(__file__),'boxes','allcountries.bbox')
-  def __init__(self, boxes=None, logHandler=None):
+  ADDBOXES=os.path.join(os.path.dirname(__file__),'boxes','computed.bbox')
+  def __init__(self, boxes=None, additionalBoxes=None,logHandler=None):
     super().__init__(logHandler)
     self.boxesFile=boxes if boxes is not None else self.BOXES
+    self.addBoxes=None
+    if additionalBoxes == True:
+      self.addBoxes=self.ADDBOXES
+    elif additionalBoxes is not None:
+      self.addBoxes=additionalBoxes
     self.logHandler=logHandler
     self.merges=[]
     self.numTiles=0
 
   def getBoxes(self,nelat,nelng,swlat,swlng,minZoom=None,maxZoom=None):
+    '''
+    get boxes from the main file
+    :param nelat:
+    :param nelng:
+    :param swlat:
+    :param swlng:
+    :param minZoom:
+    :param maxZoom:
+    :return:
+    '''
     rt=[]
     if minZoom is None:
       minZoom=0
@@ -212,39 +240,42 @@ class Boxes(LogEnabled):
   def mergeBoxes(self,boxesList=None,minZoom=0,maxZoom=20):
     rt=[]
     numTiles=0
-    with open(self.boxesFile,"r") as fh:
-      for bline in fh:
-        parts=re.split('  *',bline.rstrip())
-        if len(parts) != 6:
-          self.logDebug("skipping invalid line %s",bline)
-        try:
-          chartBox=Box(LatLng(float(parts[4]),float(parts[5])),LatLng(float(parts[2]),float(parts[3])),int(parts[1]),name=parts[0])
-          if chartBox.zoom < minZoom or chartBox.zoom > maxZoom:
-            continue
-          if boxesList is None:
-            self.logDebug("adding %s", str(chartBox))
-            numTiles += chartBox.getNumTiles()
-            rt.append(chartBox)
-            continue
-          #first we intersect with all boxes we have and
-          #extend this íntersection
-          #at the end we intersect again with the box to ensure at most the complete box
-          intersection=None
-          for box in boxesList:
-            currentIntersect=chartBox.intersection(box)
-            if intersection is None:
-              intersection=currentIntersect
-            else:
-              intersection.extend(currentIntersect)
-          if intersection is not None:
-            result=chartBox.intersection(intersection)
-            if result is not None:
-              self.logDebug("adding from %s: %s",str(chartBox),str(result))
-              rt.append(result)
-              #we assume that the boxes do not overlap at one level...
-              numTiles+=result.getNumTiles()
-        except Exception as e:
-          self.logError("unable to parse %s:%s",bline,str(e))
+    for boxesFile in [self.boxesFile,self.addBoxes]:
+      if boxesFile is None:
+        continue
+      with open(boxesFile,"r") as fh:
+        for bline in fh:
+          parts=re.split('  *',bline.rstrip())
+          if len(parts) != 6:
+            self.logDebug("skipping invalid line %s",bline)
+          try:
+            chartBox=Box(LatLng(float(parts[4]),float(parts[5])),LatLng(float(parts[2]),float(parts[3])),int(parts[1]),name=parts[0])
+            if chartBox.zoom < minZoom or chartBox.zoom > maxZoom:
+              continue
+            if boxesList is None:
+              self.logDebug("adding %s", str(chartBox))
+              numTiles += chartBox.getNumTiles()
+              rt.append(chartBox)
+              continue
+            #first we intersect with all boxes we have and
+            #extend this íntersection
+            #at the end we intersect again with the box to ensure at most the complete box
+            intersection=None
+            for box in boxesList:
+              currentIntersect=chartBox.intersection(box)
+              if intersection is None:
+                intersection=currentIntersect
+              else:
+                intersection.extend(currentIntersect)
+            if intersection is not None:
+              result=chartBox.intersection(intersection)
+              if result is not None:
+                self.logDebug("adding from %s: %s",str(chartBox),str(result))
+                rt.append(result)
+                #we assume that the boxes do not overlap at one level...
+                numTiles+=result.getNumTiles()
+          except Exception as e:
+            self.logError("unable to parse %s:%s",bline,str(e))
     self.merges=rt
     self.numTiles=numTiles
     return (rt,numTiles)
@@ -328,7 +359,7 @@ class SeedWriter(LogEnabled):
 
 
 def createSeed(boundsFile,name,caches,seedFile=None,logger=None,reloadDays=None):
-  merger = Boxes(logHandler=logger)
+  merger = Boxes(logHandler=logger,additionalBoxes=True)
   with open(boundsFile, 'r') as h:
     blist = yaml.safe_load(h)
   boxesList = []
@@ -345,7 +376,7 @@ def createSeed(boundsFile,name,caches,seedFile=None,logger=None,reloadDays=None)
   return (merger.numTiles,seeds)
 
 def countTiles(bounds,logger=None):
-  merger = Boxes(logHandler=logger)
+  merger = Boxes(logHandler=logger,additionalBoxes=True)
   boxesList = []
   for b in bounds:
     boxesList.append(Box.fromDict(b))

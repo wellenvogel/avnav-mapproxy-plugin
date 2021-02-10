@@ -62,11 +62,30 @@ def findCompleteMatch(parsedBoxes,box,maxEmpty):
     for compare in parsedBoxes.getZoomBounds(zoom):
       if compare.contains(box):
         return True
+      intersection=compare.intersection(box)
+      if intersection is not None:
+        intersecting.append(intersection)
+    if len(intersecting) > 0:
+      tileList=box.getTileList(-down)
+      foundTiles=[]
+      for intersection in intersecting:
+        foundTiles+=intersection.getTileList()
+      allFound=True
+      for tile in tileList:
+        if tile not in foundTiles:
+          allFound=False
+          break
+      if allFound:
+        return True
+
     down+=1
     zoom-=1
   return False
 
 
+def combineBoxes(boxList):
+
+  return boxList
 
 def computeMissing(inFile,outFile,maxEmpty=1):
   logHandler=Log()
@@ -98,6 +117,8 @@ def computeMissing(inFile,outFile,maxEmpty=1):
         additionalBoxes.append(upperBox)
         parsedBoxes.addBox(upperBox)
   logHandler.log("created %d additionalBoxes",len(additionalBoxes))
+  additionalBoxes=combineBoxes(additionalBoxes)
+  logHandler.log("%d boxes after combination",len(additionalBoxes))
   with open(outFile,"w") as oh:
     for box in additionalBoxes:
       oh.write(boxReader.boxToLine(box))
