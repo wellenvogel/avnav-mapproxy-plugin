@@ -57,6 +57,11 @@ class Injector(object):
         self._createOpenWarpper(args[0],rt[0])
         return rt
       source.http_client=httpClientWrapper
+
+      import mapproxy.source
+      def offlineGetMap(*args):
+        raise Exception("offline")
+      mapproxy.source.DummySource.get_map=offlineGetMap
     except Exception as e:
       self.creationException=e
 
