@@ -73,6 +73,7 @@ class Box(object):
     self.southwest=southwest # type: LatLng
     self.zoom=zoom # type: int
     self.name=name
+    self.isComputed=False
   @classmethod
   def representYaml(cls,dumper,data):
     return dumper.represent_dict(data.toDict())
@@ -89,6 +90,13 @@ class Box(object):
   def __str__(self):
     return "Box: ne=[%s],sw=[%s],z=%s"%(str(self.northeast),str(self.southwest),str(self.zoom))
 
+  def clone(self):
+    return Box(
+      LatLng(self.northeast.lat,self.northeast.lng),
+      LatLng(self.southwest.lat,self.southwest.lng),
+      zoom=self.zoom,
+      name=self.name
+    )
   def intersection(self,other):
     '''
     get the intersection beween 2 boxes
@@ -125,6 +133,17 @@ class Box(object):
       self.southwest.lng = other.southwest.lng
       hasChanged=True
     return hasChanged
+
+  def contains(self,other):
+    if self.northeast.lat < other.northeast.lat:
+      return False
+    if self.northeast.lng < other.northeast.lng:
+      return False
+    if self.southwest.lat > other.southwest.lat:
+      return False
+    if self.southwest.lng > other.southwest.lng:
+      return False
+    return True
 
   def getMpBounds(self):
     '''
@@ -184,11 +203,13 @@ class Boxes(LogEnabled):
           continue
         rt.append(bline)
     return rt
-
+  @classmethod
+  def boxToLine(cls,box):
+    return "%s %d %f %f %f %f"%(box.name,box.zoom,box.southwest.lat,box.southwest.lng,box.northeast.lat,box.northeast.lng)
   #line from boxes:
   #         z   s    w     n    e
   #1U319240 12 24.0 119.0 25.0 120.0
-  def mergeBoxes(self,boxesList,minZoom=0,maxZoom=20):
+  def mergeBoxes(self,boxesList=None,minZoom=0,maxZoom=20):
     rt=[]
     numTiles=0
     with open(self.boxesFile,"r") as fh:
@@ -199,6 +220,11 @@ class Boxes(LogEnabled):
         try:
           chartBox=Box(LatLng(float(parts[4]),float(parts[5])),LatLng(float(parts[2]),float(parts[3])),int(parts[1]),name=parts[0])
           if chartBox.zoom < minZoom or chartBox.zoom > maxZoom:
+            continue
+          if boxesList is None:
+            self.logDebug("adding %s", str(chartBox))
+            numTiles += chartBox.getNumTiles()
+            rt.append(chartBox)
             continue
           #first we intersect with all boxes we have and
           #extend this íntersection
@@ -240,6 +266,13 @@ class Parsed(object):
     return list(self.bounds.keys())
   def getZoomBounds(self,z):
     return self.bounds.get(z,[])
+  def addBox(self,box):
+    if box.zoom is None:
+      return False
+    if self.bounds.get(box.zoom) is None:
+      self.bounds[box.zoom]=[]
+    self.bounds[box.zoom].append(box)
+    return True
 
 class Bounding(object):
   def __init__(self,name,bounds):
