@@ -54,12 +54,23 @@ class LatLng(object):
     self.lng=lng
   def __str__(self):
     return "lat=%f,lon=%f"%(self.lat,self.lng)
+
+  def __eq__(self,other):
+    return self.lat == other.lat and self.lng == other.lng
+
   @classmethod
   def fromDict(cls,d):
     return LatLng(d['lat'],d['lng'])
 
   def toDict(self):
     return self.__dict__
+
+  def closeTo(self,other,maxDiff):
+    if abs(self.lat-other.lat)> maxDiff:
+      return False
+    if abs(self.lng - other.lng) > maxDiff:
+      return False
+    return True
 
 def getV(data,keys):
   for k in keys:
@@ -84,11 +95,22 @@ class Box(object):
     zoom=getV(d,['z','zoom'])
     return Box(ne,sw,zoom=zoom)
 
+  def getSize(self,doSqrt=False):
+    lat=abs(self.southwest.lat-self.northeast.lat)
+    lng=abs(self.southwest.lng-self.northeast.lng)
+    d=lat*lat+lng*lng
+    if not doSqrt:
+      return d
+    return math.sqrt(d)
+
   def toDict(self):
     return {'ne':self.northeast.toDict(),'sw':self.southwest.toDict(),'zoom':self.zoom}
 
   def __str__(self):
     return "Box: ne=[%s],sw=[%s],z=%s"%(str(self.northeast),str(self.southwest),str(self.zoom))
+
+  def __eq__(self,other):
+    return self.southwest == other.southwest and self.northeast == other.northeast and self.zoom == other.zoom
 
   def clone(self):
     return Box(
@@ -153,13 +175,14 @@ class Box(object):
     '''
     return [self.southwest.lng,self.southwest.lat,self.northeast.lng,self.northeast.lat]
 
-  def getNumTiles(self):
+  def getNumTiles(self,roundDown=False):
     if self.zoom is None or self.zoom < 0:
       return 0
+    add=1 if roundDown is False else 0
     netile=deg2num(self.northeast.lat,self.northeast.lng,self.zoom)
     swtile=deg2num(self.southwest.lat,self.southwest.lng,self.zoom)
-    xdiff=abs(netile[0]-swtile[0])+1
-    ydiff=abs(netile[1]-swtile[1])+1
+    xdiff=abs(netile[0]-swtile[0])+add
+    ydiff=abs(netile[1]-swtile[1])+add
     return xdiff*ydiff
 
   def getTileList(self,zoomOffset=0):
@@ -239,6 +262,7 @@ class Boxes(LogEnabled):
   #1U319240 12 24.0 119.0 25.0 120.0
   def mergeBoxes(self,boxesList=None,minZoom=0,maxZoom=20):
     rt=[]
+    zoomLevelBoxes={}
     numTiles=0
     for boxesFile in [self.boxesFile,self.addBoxes]:
       if boxesFile is None:
@@ -270,10 +294,28 @@ class Boxes(LogEnabled):
             if intersection is not None:
               result=chartBox.intersection(intersection)
               if result is not None:
-                self.logDebug("adding from %s: %s",str(chartBox),str(result))
-                rt.append(result)
+                if result.zoom is None:
+                  result.zoom=-1
+                if zoomLevelBoxes.get(result.zoom) is None:
+                  zoomLevelBoxes[result.zoom]=[]
                 #we assume that the boxes do not overlap at one level...
-                numTiles+=result.getNumTiles()
+                resultTiles=result.getNumTiles()
+                alreadyContained=False
+                for other in zoomLevelBoxes[result.zoom]:
+                  if other.contains(result):
+                    alreadyContained=True
+                    break
+                  intersect=other.intersection(result)
+                  if intersect is not None:
+                    resultTiles-=intersect.getNumTiles(True)
+                if alreadyContained:
+                  continue
+                if resultTiles < 0:
+                  resultTiles=0
+                self.logDebug("adding from %s: %s", str(chartBox), str(result))
+                zoomLevelBoxes[result.zoom].append(result)
+                rt.append(result)
+                numTiles +=resultTiles
           except Exception as e:
             self.logError("unable to parse %s:%s",bline,str(e))
     self.merges=rt
