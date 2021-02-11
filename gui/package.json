@@ -1,5 +1,5 @@
 {
-  "name": "avnva-mapproxy-plugin",
+  "name": "avnav-mapproxy-plugin",
   "version": "1.0.0",
   "description": "mapproxy plugin for AvNav",
   "main": "index.js",
@@ -9,7 +9,8 @@
     "watch": "webpack --config ./webpack.debug.js --watch --progress",
     "debug": "webpack --config ./webpack.debug.js --progress",
     "production": "webpack --config ./webpack.production.js --progress",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "license": "nodejs tools/collectLicense.js"
   },
   "keywords": [],
   "author": {
@@ -28,6 +29,7 @@
     "less": "^3.13.0",
     "less-loader": "^7.1.0",
     "mini-css-extract-plugin": "^1.3.3",
+    "nlf": "^2.1.1",
     "style-loader": "^2.0.0",
     "webpack": "^5.10.1",
     "webpack-cli": "^4.2.0",
