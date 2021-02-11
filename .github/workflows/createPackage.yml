@@ -71,5 +71,5 @@ jobs:
           server: '${{ secrets.REPO_SERVER }}'
           user: '${{ secrets.REPO_USER }}'
           localFile: ${{ steps.pkgyml.outputs.name }}_${{ steps.version.outputs.version}}_${{ steps.pkgyml.outputs.arch }}.deb
-          remoteDir: '/release/avnav-history-plugin/${{ steps.version.outputs.version}}'
+          remoteDir: '/release/avnav-mapproxy-plugin/${{ steps.version.outputs.version}}'
           
