@@ -6,9 +6,7 @@ err(){
 }
 pdir=`dirname $0`
 pdir=`readlink -f "$pdir"`
-boxesRepo='https://raw.githubusercontent.com/free-x/mbtiles-nautical-boxes/contrib/iho/contrib/iho'
-boxes="allcountries.bbox"
-buildDir="$pdir/boxes"
+cd $pdir
 #set -x
 config=package.yaml
 force=0
