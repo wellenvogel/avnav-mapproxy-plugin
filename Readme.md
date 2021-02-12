@@ -148,8 +148,10 @@ into the cache.
 It will mark this number in red if you exceed a configured limit (default: 200000) - 
 and it will refuse to start the seed.
 
-You can store your selection using the name from the name field and you can load or delete 
+You can save your selection at the server using the name from the name field and you can load or delete 
 stored selections.
+
+With "Upload" and "Download" you can load and save the current selection from/to a file on your local system. 
 On the "Layer" dropdown you can decide which layer you would like to see (and prepare for seeding).
 At "Reload" you can decide if you would like to re-download tiles that are already in the
 cache.
