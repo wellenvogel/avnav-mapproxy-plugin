@@ -121,6 +121,46 @@ import {
             showError(e);
         });
     }
+    let downloadSelection=()=>{
+        let name="default";
+        let ne=document.getElementById('selectionName');
+        if (ne) name=ne.value;
+        let bounds=map.getSelectionBounds();
+        name=safeName(name);
+        let data=yaml.dump(bounds,{schema:yaml.JSON_SCHEMA});
+        if (! data) return;
+        FileDownload(data,name+".yaml");
+    }
+    let uploadSelection=()=>{
+        let fi=document.getElementById('uploadInput');
+        fi.value='';
+        fi.setAttribute('data-function','uploadSelection')
+        fi.click();
+    }
+    let uploadHandlers={
+        uploadSelection: (el)=>{
+            if (! el.files || el.files.length < 1) return;
+            let input=el.files[0];
+            let reader=new FileReader();
+            reader.onload=(data)=>{
+                let code=reader.result;
+                try {
+                    let parsed = yaml.load(code, {schema: yaml.JSON_SCHEMA});
+                    setTextContent('#selectionName',input.name.replace(/\.yaml/,''));
+                    map.setSelections(parsed);
+                }catch (e){
+                    showError(e)
+                }
+            }
+            reader.onerror=(e)=>showError(e);
+            reader.readAsText(input);
+        }
+    }
+    let fileInputSelectHandler=(ev)=>{
+        let callback=uploadHandlers[ev.target.getAttribute('data-function')];
+        if (! callback) return;
+        callback(ev.target);
+    }
     let startSeed=()=>{
         showHideOverlay('spinnerOverlay',true)
         saveSelections(true);
@@ -203,7 +243,9 @@ import {
         save:()=>saveSelections(false),
         loadSelection: loadSelection,
         deleteSelection:deleteSelection,
-        startSeed: startSeed
+        startSeed: startSeed,
+        downloadSelection:downloadSelection,
+        uploadSelection: uploadSelection
     }
     let buildLayerInfo=(layer)=>{
         let lf=document.createElement('div');
@@ -319,6 +361,11 @@ import {
         networkModeSt=buildRadio('#networkModeSt',modes,changeNetworkMode);
         networkModeDl=buildRadio('#networkModeDl',modes,changeNetworkMode);
     }
+    let selectionChanged=()=>{
+        let canSave = map && map.hasDrawnItems();
+        buttonEnable('downloadSelection',canSave);
+        buttonEnable('save',canSave);
+    }
     window.addEventListener('load',function(){
         let title=document.getElementById('title');
         if (window.location.search.match(/title=no/)){
@@ -348,6 +395,10 @@ import {
                 }catch (e){}
                 showError((etxt !== undefined)?etxt.replace("\n"," "):"unable to download");
             });
+        }
+        let fileInput=document.getElementById('uploadInput');
+        if (fileInput){
+            fileInput.addEventListener('change',fileInputSelectHandler);
         }
         forEachEl('button',(bt)=> {
                 let handler = buttonActions[bt.getAttribute('id')] ||
@@ -397,6 +448,8 @@ import {
                         && ! seed.paused && data.networkAvailable);
                     buttonEnable('killSeed',seedStatus === 'running' || seed.paused);
                     buttonEnable('showLog',seed.logFile);
+                    buttonEnable('downloadSelection',canSave);
+                    buttonEnable('save',canSave);
                     changeRadio(networkModeSt,data.networkMode);
                     changeRadio(networkModeDl,data.networkMode);
                     let networkState='unknown';
@@ -433,7 +486,7 @@ import {
                     console.log(error);
                 })
         }, 1000);
-        map=new SeedMap('map',base);
+        map=new SeedMap('map',base,selectionChanged);
         selectTab('statustab');
     })
 })();

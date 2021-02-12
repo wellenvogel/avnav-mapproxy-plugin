@@ -155,9 +155,11 @@ const SELECT_OPTIONS = {
 }
 
 export default class SeedMap{
-    constructor(mapdiv,apiBase,showBoxes) {
+    constructor(mapdiv,apiBase,showBoxes,opt_changeCallback) {
         this.updateTileCount=this.updateTileCount.bind(this);
+        this.selectionChanged=this.selectionChanged.bind(this);
         this.mapdiv=mapdiv;
+        this.changeCallback=opt_changeCallback;
         this.boxesTimer=undefined;
         this.boxesSequence=1;
         this.boxesTimeout=500; //mms to wait for boxes update
@@ -212,10 +214,10 @@ export default class SeedMap{
         this.map.on(L.Draw.Event.CREATED, (e)=> {
             let layer = e.layer;
             this.drawnItems.addLayer(layer);
-            this.updateTileCount();
+            this.selectionChanged();
         });
-        this.map.on(L.Draw.Event.DELETED,this.updateTileCount);
-        this.map.on(L.Draw.Event.EDITED,this.updateTileCount);
+        this.map.on(L.Draw.Event.DELETED,this.selectionChanged);
+        this.map.on(L.Draw.Event.EDITED,this.selectionChanged);
         this.map.on('zoomstart',()=>this.inZoom=true)
         this.map.on('zoomend',()=>{
             this.inZoom=false;
@@ -229,6 +231,12 @@ export default class SeedMap{
         this.map.on('draw:created',(e)=>{
             e.layer.addEventParent(this.boxesLayer);
         })
+    }
+    selectionChanged(){
+        this.updateTileCount();
+        if (this.changeCallback){
+            this.changeCallback();
+        }
     }
     setShowBoxes(on){
         let old=this.showBoxes;
