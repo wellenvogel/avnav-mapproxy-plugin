@@ -19,6 +19,7 @@ that allows to control and supervise mapproxy.
 There will be 2 new widgets that you can integrate on your pages to have a quick view at the 
 MapProxy status.
 MapProxy itself will not run as a separate process but directly inside AvNav (except for seeding - see below).
+You can check the status of the plugin at the [status page](https://www.wellenvogel.net/software/avnav/docs/userdoc/statuspage.html).
 
 UserApp
 -------
@@ -61,6 +62,36 @@ You should follow some rules when setting up the configuration (most of them are
      Just check the provided [avnav_user.yaml](avnav_user.yaml) for examples.
    * for tile sources wie have 2 grids: osm_grid_xyz with y=0 in the north and osm_grid_tms with y=0 in the south 
         
+If you are going to add a new source you have to make the following changes in the configuration:
+   * add a new layer
+     ```yaml
+     mytest:
+       title: My Test Chart
+       sources: [c_mytest] 
+     ```
+   * add a cache
+     ```yaml
+     c_mytest:
+       grids: [webmercator]
+       sources: [s_mytest]
+       meta_size: [1,1]
+       cache:
+         type: mbtiles
+         filename: mytest.mbtiles
+       
+     ```  
+   * add the source itself
+     ```yaml
+     s_mytest:
+       req: 
+         layers: 'Blattschnitte,IENC'
+         transparent: true
+         url: 'https://atlas.wsv.bund.de/ienc/wms?'
+       supported_formats: [png]
+       supported_srs: ['EPSG:4326']
+       type: wms
+       wms_opts: {version: 1.1.1}
+     ```  
 When you finished editing the config file you can do some yaml syntax checks using "Check".
 
 ![EditError1](doc/mapproxy-main-edit-check.png)
@@ -152,9 +183,69 @@ With the mpControlWidget you will get the current status of Mapproxy and you can
 the network mode.
 The status widget is similar but without the ability to switch the network state.
 
-Configuration
+AvNav Configuration
 -------------
 Normally there is no need for you to configure anything in the avnav_server.xml.
+The following parameters can be set:
+```
+<AVNPluginHandler>
+<system-mapproxy chartQueryPeriod="5".../>
+```
+Name | default| Description
+-----|--------|------------
+dataDir | $DATADIR/mapproxy | the directory for all the mapproxy related data
+chartQueryPeriod | 5 | time in seconds before checking/querying the mapproxy config 
+maxTiles |  200000 | the maximum number of tiles being allowed for seeding
+networkMode | auto | the network mode being set when AvNav is starting
+checkHost | www.wellenvogel.de | the hostname used for checking of network availability
+
+Advanced Features
+-----------------
+In addition to the normal source configurations suppoerted by MapProxy the plugin
+provides the ability to plug in some python code before and after a request is made
+to a particular source.
+This requires some programming know how and deep knowledge about the requirements
+a source has.
+You would configure at the source:
+```yaml
+s_pluginexample:
+    type: tile
+    grid: osm_grid
+    url:  http://t1.openseamap.org/seamark/%(z)s/%(x)s/%(y)s.png
+    transparent: true
+    plugin: pluginexample.py
+
+```
+Additionally you need to put a file 'pluginexample.py' in the mapproxy directory (/home/pi/avnav/data/mapproxy).
+Within this file you can implement 2 methods:
+```python
+def prepareRequest(url,headers):
+    print("###prepareRequest for %s"%url)
+    if '?' in url:
+        return url+"&t=1"
+    else:
+        return url+"?t=1"    
+
+def checkResponse(response,url):
+    print('testplugin response for %s'%(url))
+    if not response.headers.get('Content-type', 'image/').startswith('image/'):
+      return None
+    return response
+
+```
+At least one of the two methods must be available. Otherwise an error will occur.
+
+In this example we add a parameter t=1 to each request. Inside checkResponse you can e.g. check
+if the response is a valid image. If you return None internally a blank image will be returned - this way avoiding
+source errors.
+
+In prepareRequest you can also modify the headers dictionary that is later used in the request.
+If you return None from prepareRequest the original url is used unmodified.
+
+*Remark*: This plugin feature is experimental and potentially will stop working in future versions
+of MapProxy. In this case you need to remove the "plugin" parameter from all sources - otherwise
+the proxy will not start.
+
 
   
 
