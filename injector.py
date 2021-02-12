@@ -100,11 +100,11 @@ class Injector(object):
     prepareMethod=None
     if hasattr(pluginModule,'prepareRequest'):
       prepareMethod=pluginModule.prepareRequest
-    errorHandler=None
+    checkResponse=None
     if hasattr(pluginModule,'checkResponse'):
-      errorHandler=pluginModule.checkResponse
-    if errorHandler is None and prepareMethod is None:
-      raise InjectorException("either prepareRequest or handleError must be defined in %s"%plugin)
+      checkResponse=pluginModule.checkResponse
+    if checkResponse is None and prepareMethod is None:
+      raise InjectorException("either prepareRequest or checkResponse must be defined in %s"%plugin)
     #convert header_list to dict to make it modifyable
     headers={}
     if type(client.header_list) is list:
@@ -122,8 +122,8 @@ class Injector(object):
           url=args[0]
         client.header_list = headers.items()
         rt = originalOpen(url, **kwargs)
-        if errorHandler is not None:
-          rs=errorHandler(rt,url)
+        if checkResponse is not None:
+          rs=checkResponse(rt,url)
           if rs is None:
             raise mapproxy.layer.BlankImage()
           rt=rs
