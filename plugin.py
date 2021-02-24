@@ -105,6 +105,38 @@ class Plugin:
 
     """
 
+  CONFIG=[
+           {
+             'name': 'dataDir',
+             'description': 'the directory to store the mapproxy config (defaults to DATADIR/mapproxy), you can use $DATADIR in the path',
+             'default': None
+           },
+           {
+             'name': 'chartQueryPeriod',
+             'description': 'how often to query charts(s)',
+             'default': 5
+           }
+         ]
+  CONFIG_EDIT=[
+    {
+      'name': 'maxTiles',
+      'description': 'max allowed tiles for one seed',
+      'type': 'NUMBER',
+      'default': 200000
+    },
+    {
+      'name': 'networkMode',
+      'description': 'the initial state of the internet connection when AvNav is starting',
+      'type': 'SELECT',
+      'rangeOrList': NETWORK_MODES,
+      'default': 'auto'
+    },
+    {
+      'name': 'checkHost',
+      'description': 'hostname to use for network checks',
+      'default': 'www.wellenvogel.de'
+    }
+  ]
   @classmethod
   def pluginInfo(cls):
     """
@@ -118,35 +150,7 @@ class Plugin:
     """
     return {
       'description': 'mapproxy plugin',
-      'config': [
-        {
-          'name': 'dataDir',
-          'description': 'the directory to store the mapproxy config (defaults to DATADIR/mapproxy), you can use $DATADIR in the path',
-          'default': None
-        },
-        {
-          'name': 'chartQueryPeriod',
-          'description': 'how often to query charts(s)',
-          'default': 5
-        },
-
-        {
-          'name': 'maxTiles',
-          'description': 'max allowed tiles for one seed',
-          'default': 200000
-        },
-        {
-          'name': 'networkMode',
-          'description': 'one of auto|on|off',
-          'default': 'auto'
-        },
-        {
-          'name': 'checkHost',
-          'description': 'hostname to use for network checks',
-          'default': 'www.wellenvogel.de'
-        }
-
-        ],
+      'config': cls.CONFIG+cls.CONFIG_EDIT,
       'data': [
       ]
     }
@@ -174,9 +178,32 @@ class Plugin:
     self.networkHost=None
     self.networkChecker=None
     self.condition=threading.Condition()
+    if hasattr(self.api,'registerEditableParameters'):
+      self.api.registerEditableParameters(self.CONFIG_EDIT,self._changeConfig)
+    if hasattr(self.api,'registerRestart'):
+      self.api.registerRestart(self._apiRestart)
+    self.changeSequence=0
+    self.startSequence=0
 
 
+  def _apiRestart(self):
+    self.startSequence+=1
 
+  def _changeConfig(self,newValues):
+    networkMode=newValues.get('networkMode')
+    if networkMode is not None:
+      if networkMode not in self.NETWORK_MODES:
+        raise Exception("invalid network mode")
+      self.networkMode=networkMode
+    networkHost=newValues.get('checkHost')
+    if networkHost is not None:
+      self.networkHost=networkHost
+      self.networkChecker.host=networkHost
+    maxTiles=newValues.get('maxTiles')
+    if maxTiles is not None:
+      self.maxTiles=int(maxTiles)
+    self.api.saveConfigValues(newValues)
+    self.changeSequence+=1
   def _getConfigValue(self, name):
     defaults=self.pluginInfo()['config']
     for cf in defaults:
@@ -286,6 +313,7 @@ class Plugin:
     and writes them to the store every 10 records
     @return:
     """
+    startSequence=self.startSequence
     try:
       avnavData=self.api.getDataDir()
       self.dataDir=self._getConfigValue('dataDir')
@@ -342,11 +370,11 @@ class Plugin:
     except Exception as e:
       self.api.error("error in startup: %s",traceback.format_exc())
       self.api.setStatus("ERROR","exception in startup: %s"%str(e))
-      return
+      raise
     self.api.log("started")
     configFile = os.path.join(self.dataDir, self.USER_CONFIG)
     self.api.setStatus("INACTIVE","starting with config file %s"%configFile)
-    while True:
+    while startSequence == self.startSequence:
       incrementSequence=False
       restartProxy=False
       try:
