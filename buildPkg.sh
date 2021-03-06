@@ -38,6 +38,7 @@ rm -f $tmpf
 sed "s/^ *version:.*/version: \"$version\"/" $config > $tmpf
 config=$tmpf
 docker run  --rm   -v "$pdir":/tmp/pkg   --user `id -u`:`id -g` -w /tmp/pkg wellenvogel/nfpm:1.0 pkg -p deb -f $config
+docker run  --rm   -v "$pdir":/tmp/pkg   --user `id -u`:`id -g` -w /tmp/pkg wellenvogel/nfpm:1.0 pkg -p rpm -f $config
 rt=$?
 if [ "$tmpf" != "" ] ; then
   rm -f $tmpf

@@ -63,6 +63,17 @@ jobs:
           asset_path: ./${{ env.PKG_NAME }}
           asset_name: ${{ env.PKG_NAME }}
           asset_content_type: application/octet-stream
+      - name: Upload Release Asset Rpm
+        id: upload-release-asset-rpm
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PKG_NAME: ${{ steps.pkgyml.outputs.name }}_${{ steps.version.outputs.version}}_noarch.rpm
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
+          asset_path: ./${{ env.PKG_NAME }}
+          asset_name: ${{ env.PKG_NAME }}
+          asset_content_type: application/octet-stream    
 
       - name: Upload Repository
         uses:  wellenvogel/sftp-upload-action@v1.0
