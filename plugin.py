@@ -241,6 +241,7 @@ class Plugin:
       chart['url']=chartBase+"/"+chart.get('url','')
       chart['icon']= iconUrl
       chart['sequence']=self.sequence
+      chart['upzoom']=True
       rt.append(chart)
     self.charts=rt
     return rt
