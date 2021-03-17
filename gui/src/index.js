@@ -28,6 +28,7 @@ import Prismjs from 'prismjs';
 import CodeFlask from "codeflask";
 import yaml from 'js-yaml';
 import FileDownload from 'js-file-download';
+import 'whatwg-fetch';
 import {
     buttonEnable,
     safeName,

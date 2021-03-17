@@ -3,6 +3,7 @@ const CopyPlugin = require("copy-webpack-plugin");
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 
 module.exports = {
+  target: ['web','es5'],
   entry: path.resolve(__dirname,'./src/index.js'),
   output: {
     path: path.resolve(__dirname, 'build'),
@@ -23,11 +24,15 @@ module.exports = {
       rules:[
           {
               test: /\.js$|\.jsx$/,
-              exclude: /node_modules/,
+              //exclude: /node_modules/,
               use: {
                   loader: 'babel-loader',
                   options: {
-                    presets: ['@babel/preset-env'],
+                    presets: [['@babel/preset-env',{
+                        targets: {
+                            browsers: "> 0.25%, not dead, safari 9, safari 10, safari 11"
+                        }
+                    }]],
                     plugins: [
                           ["prismjs", {
                               "languages": ["javascript", "css", "markup","yaml"    ],
