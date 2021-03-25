@@ -1,18 +1,18 @@
-let updateStatus=function(ctx,name,value){
+var updateStatus=function(ctx,name,value){
     if (ctx[name] !== value){
         ctx[name]=value;
         return true;
     }
     return false;
 }
-let template='<div class="mpState"><span class="mpLabel">Proxy</span><span class="mpStatusText ${mapproxy}"></span></div>'+
+var template='<div class="mpState"><span class="mpLabel">Proxy</span><span class="mpStatusText ${mapproxy}"></span></div>'+
     '<div class="mpState"><span class="mpLabel">Net</span><span class="mpStatusText ${network}"></span></div>'+
     '<div class="mpState"><span class="mpLabel">Seed</span><span class="mpStatusText ${seed}"></span></div>';
-let statusQuery=function(ctx){
+var statusQuery=function(ctx){
     fetch(AVNAV_BASE_URL+"/api/status")
     .then(function(r){return r.json()})
     .then(function(status){
-        let needsUpdate=false;
+        var needsUpdate=false;
         needsUpdate = needsUpdate | updateStatus(ctx,'mapproxy',(status.mapproxy||{}).status);
         needsUpdate = needsUpdate | updateStatus(ctx,'network',status.networkAvailable);
         needsUpdate = needsUpdate | updateStatus(ctx,'seed',(status.seed||{}).status)
@@ -22,7 +22,7 @@ let statusQuery=function(ctx){
         }
     })
 }    
-let statusWidget={
+var statusWidget={
     name: 'mpStatusWidget',
     unit:'',
     caption: 'MapProxy',
@@ -41,12 +41,12 @@ let statusWidget={
         })
     }
 }
-let extendedTemplate='<div class="mpWrapper"><div class="mpStateWrapper">'+template+'</div>'+
+var extendedTemplate='<div class="mpWrapper"><div class="mpStateWrapper">'+template+'</div>'+
     '<div class="mpButtons"><button class="${autoSel}" onclick="netAuto">Auto</button>'+
     '<button class="${onSel}" onclick="netOn">On</button><button class="${offSel}" onclick="netOff">Off</button></div></div>';
-let extendedWidget=Object.assign({},statusWidget);
+var extendedWidget=Object.assign({},statusWidget);
 
-let switchNet=function(mode,ctx){
+var switchNet=function(mode,ctx){
     fetch(AVNAV_BASE_URL+"/api/setNetworkMode?mode="+encodeURIComponent(mode))
     .then(function(resp){return resp.json()})
     .then(function(data){
