@@ -36,7 +36,7 @@ caches:
       filename: wsv.mbtiles
   c_openseamap:
     grids: [webmercator]
-    sources: [s_openseamap]
+    sources: [s_openstreetmap,s_openseamap]
     meta_size: [1,1]
     cache:
       type: mbtiles
@@ -116,9 +116,15 @@ sources:
     supported_srs: ['EPSG:4326']
     supported_formats: ['png']
 
+  s_openstreetmap:
+    type: tile
+    grid: osm_grid_xyz
+    url: https://tile.openstreetmap.org/%(tms_path)s.png
+
   s_openseamap:
     type: tile
     grid: osm_grid_xyz
+    transparent: true
     url:  http://t1.openseamap.org/seamark/%(z)s/%(x)s/%(y)s.png
 
   s_noaa:
