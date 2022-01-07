@@ -39,14 +39,13 @@ __Configuration__
 With the "config" button you can open an editor for the config file.
 All the mapproxy related data will be in directories below /home/xxx/avnav/mapproxy
 or /home/pi/avnav/data/mapproxy.
-There are 2 config files:
+There are the following config files:
    * avnav_base.yaml<br>
      This file is overwritten on every start - you should not change it.   
-   * avnav_user.yaml<br>
-     This is the file for your configuration.
+   * layers/xxxx.yamll<br>
+     This is the file for your configuration. There should be one file per layer.
 
-Whenever you changed your configuration the plugin will combine both configurations
-and write them to avnav_user.yaml.normal or avnav_user.yaml.offline.     
+Whenever you changed your configuration the plugin will combine all configurations.     
    
 The config file editor provides some syntax highlighting and some checks for the yaml
 based config files - see [MapProxy Configuration](https://mapproxy.org/docs/nightly/configuration.html)
@@ -59,10 +58,11 @@ You should follow some rules when setting up the configuration (most of them are
    * Always use "webmercator" as grid for the cache
    * use the [mbtiles](https://mapproxy.org/docs/nightly/configuration.html#format) format for the cache and use the name of the layer as filename
    * for the [sources](https://mapproxy.org/docs/nightly/sources.html) you need to find the necessary configuration from their description<br>
-     Just check the provided [avnav_user.yaml](avnav_user.yaml) for examples.
+     Just check the provided [examples](./sources).
    * for tile sources wie have 2 grids: osm_grid_xyz with y=0 in the north and osm_grid_tms with y=0 in the south 
         
-If you are going to add a new source you have to make the following changes in the configuration:
+If you are going to add a new source the UI will already pre-fill a couple of values.
+You mainly have to set the source parameters.
    * add a new layer
      ```yaml
      mytest:
@@ -249,6 +249,12 @@ of MapProxy. In this case you need to remove the "plugin" parameter from all sou
 the proxy will not start.
 
 
-  
+Changes
+-------
+__202201xx__
+*  change the config handling to separate config files in the directory
+<avnavBase>/mapproxy/layers
+   
 
+__20210328__
         
