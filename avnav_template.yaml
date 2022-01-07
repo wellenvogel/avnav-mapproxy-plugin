@@ -1,0 +1,19 @@
+layers:
+  ##LAYER##:
+    title: ##LAYER##
+    sources: [c_##LAYER##]
+caches:
+  c_##LAYER##:
+    grids: [webmercator]
+    #potentially add more sources
+    sources: [s_##LAYER##]
+    meta_size: [1,1]
+    cache:
+      type: mbtiles
+      filename: ##LAYER##.mbtiles
+sources:
+  #add your sources here
+  s_##LAYER##:
+    #type: tile
+    #grid: osm_grid_xyz
+    #url: https://tile.openstreetmap.org/%(tms_path)s.png

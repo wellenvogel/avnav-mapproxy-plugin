@@ -44,7 +44,7 @@ import {
     showToast,
     buildSelect,
     buildRadio,
-    changeRadio
+    changeRadio, addEl
 } from "./util";
 (function(){
     let activeTab=undefined;
@@ -57,6 +57,7 @@ import {
     let hasReloadTime=false;
     let networkModeSt=undefined;
     let networkModeDl=undefined;
+    let editedConfig=undefined;
     let codeChanged=function(changed){
         buttonEnable('saveEditOverlay',changed && ! ignoreNextChanged);
         ignoreNextChanged=false;
@@ -74,7 +75,8 @@ import {
         return data
     }
     let downloadConfig=(filename)=>{
-        if (! filename) filename="avnav_user"+getDateString()+".yaml";
+        if (! filename) filename=editedConfig;
+        if (! filename) return;
         let data=getAndCheckConfig();
         if (! data) return;
         FileDownload(data,filename);
@@ -82,10 +84,13 @@ import {
     let saveConfig=function(){
         let data=getAndCheckConfig();
         if (! data) return;
-        if (confirm("Really overwrite config?")){
-            apiRequest(base,'saveConfig?data='+encodeURIComponent(data))
+        let name=editedConfig;
+        if (! name) return;
+        if (confirm("Really overwrite config "+name+"?")){
+            apiRequest(base,'saveLayer?name='+encodeURIComponent(name)+'&data='+encodeURIComponent(data))
             .then((result)=>{
                 showHideOverlay('editOverlay',false);
+                updateLayers();
             })
             .catch(function(error){
                 showError(error);
@@ -212,8 +217,9 @@ import {
             })
             .catch((e)=>showError(e))
     }
-    let editConfig=()=>{
-        apiRequest(base,'loadConfig')
+    let editConfig=(name)=>{
+        editedConfig=name;
+        apiRequest(base,'editLayer?name='+encodeURIComponent(name))
             .then((data)=>{
                 if (flask) flask.updateCode(data.data);
                 codeChanged(false);
@@ -231,11 +237,24 @@ import {
         let url=base+"/api/getLog?attach=true";
         document.getElementById('downloadFrame').setAttribute('src',url)
     };
+    let addConfig=()=>{
+        let nameEl=document.getElementById('configName');
+        if (! nameEl) return;
+        if (!nameEl.value) {
+            showError("config name must not be empty");
+            return;
+        }
+        apiRequest(base,'createLayer?name='+encodeURIComponent(nameEl.value))
+            .then((data)=>{
+                updateLayers();
+                editConfig(nameEl.value);
+            })
+            .catch((e)=>showError(e));
+    };
     let buttonActions={
         checkEditOverlay: getAndCheckConfig,
         downloadEditOverlay: ()=>downloadConfig(),
         saveEditOverlay: saveConfig,
-        editConfig:editConfig,
         showLog: showLog,
         downloadLog: downloadLog,
         reloadLog: showLog,
@@ -246,44 +265,72 @@ import {
         deleteSelection:deleteSelection,
         startSeed: startSeed,
         downloadSelection:downloadSelection,
-        uploadSelection: uploadSelection
+        uploadSelection: uploadSelection,
+        addConfig: addConfig
     }
-    let buildLayerInfo=(layer)=>{
-        let lf=document.createElement('div');
-        lf.classList.add('layerInfo');
-        let el=document.createElement('span');
-        el.classList.add('label');
-        el.textContent='Layer'
-        lf.appendChild(el);
-        el=document.createElement('span');
-        el.classList.add('value');
-        el.textContent=(layer.name||'').replace(/^mp-/,'');
-        lf.appendChild(el);
+    let buildLayerInfo=(layer,parent)=>{
+        let lf=addEl('div','layerInfo',parent);
+        addEl('span','label',lf,'Layer');
+        addEl('span','value',lf,(layer.name||'').replace(/^mp-/,''));
         let caches=layer.caches;
         if (caches){
-            let cf=document.createElement('div');
-            cf.classList.add('cacheDownloadFrame');
-            lf.appendChild(cf);
+            let cf=addEl('div','cacheDownloadFrame',lf);
             for (let cname in caches){
                 let cache=caches[cname];
                 let ccfg=cache.cache ||{};
                 if (ccfg && ccfg.type === 'mbtiles' && ccfg.filename){
-                    el=document.createElement('div');
-                    el.classList.add('cacheDownload');
+                    let el=addEl('div','cacheDownload inlineButton',cf,cache.name||'');
                     el.setAttribute('data-href',base+'/api/getCacheFile?name='+encodeURIComponent(cache.name));
                     el.addEventListener('click',(ev)=>{
                         let url=ev.target.getAttribute('data-href');
                         document.getElementById('downloadFrame').setAttribute('src',url);
-                    })
-                    el.textContent=(cache.name||'');
+                    });
                 }
                 else{
-                    el=document.createElement('span');
-                    el.classList.add('cacheName');
-                    el.textContent=cache.name;
+                    addEl('span','cacheName',cf,cache.name);
                 }
-                cf.appendChild(el);
             }
+        }
+        return lf;
+    }
+    let buildConfigInfo=(config,parent)=>{
+        let name=config.name;
+        let lf=addEl('div','layerInfo',parent);
+        addEl('span','label',lf,'Config');
+        addEl('span','value',lf,(config.name||''));
+        let ena=addEl('input','configEnable',lf);
+        ena.setAttribute('type','checkbox');
+        if (config.enabled) ena.checked=true;
+        ena.addEventListener('change',(ev)=>{
+            if (ev.target.checked) {
+                apiRequest(base, 'enableLayer?name='+encodeURIComponent(name))
+                    .then((x)=>{})
+                    .catch((e)=> {
+                        showError(e);
+                        ena.checked = false;
+                    });
+            }
+            else{
+                apiRequest(base, 'disableLayer?name='+encodeURIComponent(name))
+                    .then((x)=>{})
+                    .catch((e)=> {
+                        showError(e);
+                        ena.checked = true;
+                    });
+            }
+        });
+        if (config.editable) {
+            let edit = addEl('div', 'inlineButton', lf, 'Edit');
+            edit.addEventListener('click',(ev)=>{
+                editConfig(name);
+            });
+            let del = addEl('div','inlineButton',lf,'Delete');
+            del.addEventListener('click',(ev)=>{
+                if (! confirm("Really delete config "+name+"?")) return;
+               apiRequest(base,'deleteLayer?name='+encodeURIComponent(name))
+                   .then((d)=>updateLayers())
+                   .catch((e)=>showError(e));
+            });
         }
         return lf;
     }
@@ -305,10 +352,22 @@ import {
                         if (! data.data) return;
                         for (let i in data.data){
                             let layer=data.data[i];
-                            parent.appendChild(buildLayerInfo(layer));
+                            buildLayerInfo(layer,parent);
                         }
                     })
                     .catch((e) => showError(e));
+                let cparent=document.getElementById('statusConfigs');
+                if (! cparent) return;
+                cparent.innerText='';
+                apiRequest(base,'listConfigs')
+                    .then((data)=>{
+                        if (! data.data) return;
+                        for (let i in data.data){
+                            let config=data.data[i];
+                            buildConfigInfo(config,cparent);
+                        }
+                    })
+                    .catch((e)=>showError(e));
             }
         }
     }
@@ -367,6 +426,7 @@ import {
         buttonEnable('downloadSelection',canSave);
         buttonEnable('save',canSave);
     }
+
     window.addEventListener('load',function(){
         let title=document.getElementById('title');
         if (window.location.search.match(/title=no/)){
@@ -401,7 +461,7 @@ import {
         if (fileInput){
             fileInput.addEventListener('change',fileInputSelectHandler);
         }
-        forEachEl('button',(bt)=> {
+        forEachEl('button,.button',(bt)=> {
                 let handler = buttonActions[bt.getAttribute('id')] ||
                     buttonActions[bt.getAttribute('name')];
                 if (handler) {

@@ -22,6 +22,20 @@
 ###############################################################################
 */
 import L from "leaflet";
+export const addEl=function(type, clazz, parent, text) {
+    let el = document.createElement(type);
+    if (clazz) {
+        if (!(clazz instanceof Array)) {
+            clazz = clazz.split(/  */);
+        }
+        clazz.forEach(function (ce) {
+            el.classList.add(ce);
+        });
+    }
+    if (text) el.textContent = text;
+    if (parent) parent.appendChild(el);
+    return el;
+}
 
 export const forEach = function (array, callback) {
     for (let i = 0; i < array.length; i++) {

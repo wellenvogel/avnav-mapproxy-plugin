@@ -78,15 +78,20 @@ class MissingParameterException(Exception):
 class Plugin:
   BASE_CONFIG='avnav_base.yaml'
   USER_CONFIG='avnav_user.yaml'
+  INCLUDE_CONFIG='avnav_include.yaml'
   NAME_PREFIX='mp-'
   MPREFIX="mapproxy"
   ICONFILE="logo.png"
   WD_SELECTIONS='selections'
   WD_SEED='seed'
+  WD_LAYERS="layers"
+  WD_ALL=[WD_LAYERS,WD_SEED,WD_SELECTIONS]
   NW_AUTO='auto'
   NW_ON='on'
   NW_OFF='off'
+  RT_OK={'status':'OK'}
   NETWORK_MODES=[NW_AUTO,NW_OFF,NW_ON]
+  CONFIG_TEMPLATE="avnav_template.yaml"
   AVNAV_XML = """<?xml version="1.0" encoding="UTF-8" ?>
     <TileMapService version="1.0.0" >
      <Title>%(title)s</Title>
@@ -246,10 +251,15 @@ class Plugin:
     self.charts=rt
     return rt
 
-  def _getDataDir(self,subDir=None):
+  def _getDataDir(self,subDir=None,create=False):
     if subDir is None:
-      return self.dataDir
-    return os.path.join(self.dataDir,subDir)
+      rt=self.dataDir
+    else:
+      rt=os.path.join(self.dataDir,subDir)
+    if not os.path.exists(rt) and create:
+      os.makedirs(rt)
+    return rt
+
 
   def _listSelections(self):
     rt=[]
@@ -304,6 +314,45 @@ class Plugin:
     finally:
       self.condition.release()
 
+  def _getSystemConfigDir(self):
+    return os.path.join(os.path.dirname(__file__),'sources')
+  def _listConfigs(self,includeUser=False):
+    rt=[]
+    alreadySeen=[]
+    if includeUser:
+      userPath=os.path.join(self._getDataDir(),self.USER_CONFIG)
+      if os.path.exists(userPath):
+        rt.append({'path':userPath,'name':self.USER_CONFIG,'editable':True})
+        alreadySeen.append(self.USER_CONFIG)
+    userDir=self._getDataDir(self.WD_LAYERS)
+    for cfgDir in [userDir,self._getSystemConfigDir()]:
+      for f in os.listdir(cfgDir):
+        if not f.endswith('.yaml'):
+          continue
+        if f == self.BASE_CONFIG:
+            continue
+        if f in alreadySeen:
+          continue
+        rt.append({'path':os.path.join(cfgDir,f),'name':f,'editable':cfgDir == userDir})
+    return rt
+
+  def _getMainConfig(self):
+    return os.path.join(self._getDataDir(),self.INCLUDE_CONFIG)
+
+  def _addRemoveInclude(self,data,include,add=True):
+    includes=data.get('base')
+    if includes is None:
+      includes=[]
+      data['base']=includes
+    if add:
+      if not include in includes:
+        includes.append(include)
+        return True
+      return False
+    if include in includes:
+      includes.remove(include)
+      return True
+    return False
 
   def run(self):
     """
@@ -322,25 +371,46 @@ class Plugin:
         self.dataDir=self.dataDir.replace('$DATADIR',avnavData)
       else:
         self.dataDir=os.path.join(avnavData,'mapproxy')
-      for d in [None,self.WD_SELECTIONS,self.WD_SEED]:
-        dirpath=self._getDataDir(d)
-        if not os.path.exists(dirpath):
-          os.makedirs(dirpath)
+      for d in self.WD_ALL:
+        dirpath=self._getDataDir(d,True)
         if not os.path.isdir(dirpath):
           raise Exception("unable to create data directory %s"%dirpath)
-      configFiles=[self.BASE_CONFIG,self.USER_CONFIG]
-      for f in configFiles:
-        outname=os.path.join(self.dataDir,f)
-        if not os.path.exists(outname) or f == self.BASE_CONFIG:
-          src=os.path.join(os.path.dirname(__file__),f)
-          if not os.path.exists(src):
-            self.api.setStatus("ERROR","config template %s not found"%src)
-            return
-          self.api.log('creating config file %s from template %s',outname,src)
-          shutil.copyfile(src,outname)
+      mainCfg=self._getMainConfig()
+      legacyBase=os.path.join(self._getDataDir(),self.BASE_CONFIG)
+      if os.path.exists(legacyBase):
+        self.api.log("renaming old %s to %s.old"%(legacyBase,legacyBase))
+        os.rename(legacyBase,legacyBase+".old")
+      if not os.path.exists(mainCfg):
+        self.api.log("creating main cfg %s"%mainCfg)
+        data={}
+        for i in [self.BASE_CONFIG,self.USER_CONFIG]:
+          self._addRemoveInclude(data, i, True)
+        for i in self._listConfigs():
+          self._addRemoveInclude(data,i['name'],True)
+        yamldata = yaml.dump(data)
+        self._safeWriteFile(mainCfg,yamldata)
+      else:
+        with open(mainCfg,'r') as mh:
+          mainData=yaml.safe_load(mh)
+          hasChanged=False
+          if self._addRemoveInclude(mainData,self.BASE_CONFIG,True):
+            hasChanged=True
+            self.api.log("repairing missing %s in %s"%(self.BASE_CONFIG,mainCfg))
+          includes=(mainData.get('base') or []) + []
+          for include in includes:
+            try:
+                self._getLayerConfig(include,True,True)
+            except:
+                self._addRemoveInclude(mainData,include,False)
+                self.api.log("repairing %s, remove non existent %s"%(mainCfg,include))
+                hasChanged=True
+          if hasChanged:
+            self._safeWriteFile(mainCfg,yaml.dump(mainData))
       self.maxTiles=int(self._getConfigValue('maxTiles'))
+      configDirs=[self._getDataDir(),self._getDataDir(self.WD_LAYERS),self._getSystemConfigDir()]
       self.mapproxy=mapproxyWrapper.MapProxyWrapper(self.api.getBaseUrl()+"/api/"+self.MPREFIX,
-                                                os.path.join(self.dataDir,self.USER_CONFIG),
+                                                os.path.join(self.dataDir,self.INCLUDE_CONFIG),
+                                                configDirs,
                                                 self.api)
       self.seedRunner=seedRunner.SeedRunner(self._getDataDir(self.WD_SEED),
                                             self.mapproxy.getConfigName(False), #only if online...
@@ -439,6 +509,64 @@ class Plugin:
         return None
       raise MissingParameterException(name)
     return data[0]
+  
+  def _getLayerConfig(self,name,raiseMissing=False,useAllDirs=False):
+    safeName=self._safeName(name) 
+    if name != safeName:
+      raise Exception("invalid name")
+    dirs=[]
+    if not name.endswith('.yaml'):
+      name+=".yaml"
+    if not useAllDirs:
+        dirs=[self._getDataDir(self.WD_LAYERS)]
+        if name == self.USER_CONFIG:
+            dirs=[self._getDataDir()]
+    else:
+        dirs=[self._getDataDir(self.WD_LAYERS),self._getDataDir(),self._getSystemConfigDir()]
+    #try to find an existing one
+    for dir in dirs:
+        fn=os.path.join(dir,name)
+        if os.path.exists(fn):
+            return fn
+    if not raiseMissing:  
+      return os.path.join(dirs[0],name)
+    raise Exception("layer config %s not found"%safeName)
+
+  def _safeWriteFile(self,fileName,data):
+    tmpname=fileName+".tmp%s"%str(time.time())
+    with open(tmpname,"w") as oh:
+      oh.write(data)
+      oh.close()
+      try:
+        os.replace(tmpname,fileName)
+      except Exception as e:
+        try:
+          os.unlink(tmpname)
+        except:
+          pass
+        raise
+
+  def _checkAndEnableLayer(self,name,layerData,enable=None):
+    try:
+      parsed = yaml.safe_load(layerData)
+    except Exception as e:
+      return {'status': 'invalid yaml: %s' % str(e)}
+    if not name.endswith('.yaml'):
+      name += '.yaml'
+    cfg={}
+    with open(self._getMainConfig(), 'r') as mh:
+      cfg = yaml.safe_load(mh)
+    enabledChanged=False
+    if enable is not None:
+        enabledChanged = self._addRemoveInclude(cfg, name, enable)
+    self.mapproxy.parseAndCheckConfig(
+      offline=not self.networkAvailable,
+      cfg=cfg.copy(),
+      baseData={name: parsed}
+    )
+    if enabledChanged:
+      self.api.log("change layer %s enabled=%s"%(name,enable))
+      self._safeWriteFile(self._getMainConfig(), yaml.dump(cfg))
 
   def handleApiRequest(self,url,handler,args):
     """
@@ -472,7 +600,7 @@ class Plugin:
           raise Exception("invalid mode %s, allowed: %s"%(mode,",".join(self.NETWORK_MODES)))
         self.networkMode=mode
         self._wakeupLoop()
-        return {'status':'OK'}
+        return self.RT_OK
       if url == 'saveSelection':
         data=self._getRequestParam(args,'data')
         name=self._getRequestParam(args,'name')
@@ -499,11 +627,11 @@ class Plugin:
             return {'status':'number of tiles %d larger then allowed %s'%(numTiles,self.maxTiles)}
           self.seedRunner.runSeed(seeds, cacheNames,selectionName=self._safeName(name))
           return {'status':'OK','numTiles':numTiles}
-        return {'status':'OK'}
+        return self.RT_OK
 
       if url == 'killSeed':
         self.seedRunner.killRun()
-        return {'status':'OK'}
+        return self.RT_OK
 
       if url == 'countTiles':
         data=self._getRequestParam(args,'data')
@@ -517,7 +645,7 @@ class Plugin:
         fname=self._getSelectionFile(name)
         if os.path.exists(fname):
           os.unlink(fname)
-        return {'status':'OK'}
+        return self.RT_OK
 
       if url == 'loadSelection':
         name = self._getRequestParam(args,'name')
@@ -544,25 +672,90 @@ class Plugin:
           return {'status':'invalid yaml: %s'%str(e)}
         self.mapproxy.parseAndCheckConfig(
           offline=not self.networkAvailable,
-          cfg=parsed
+          cfg=parsed.copy()
         )
         outname=os.path.join(self.dataDir,self.USER_CONFIG)
-        tmpname=outname+".tmp%s"%str(time.time())
-        with open(tmpname,"w") as oh:
-          oh.write(data)
-          oh.close()
-        try:
-          os.replace(tmpname,outname)
-        except Exception as e:
-          try:
-            os.unlink(tmpname)
-          except:
-            pass
-          return {'status':'unable to write %s: %s'%(outname,str(e))}
+        self._safeWriteFile(outname,data)
         self._wakeupLoop()
-        return {'status':'OK'}
+        return self.RT_OK
+      if url == 'createLayer':
+        name= self._getRequestParam(args,'name',raiseMissing=True)
+        configFile=self._getLayerConfig(name)
+        if os.path.exists(configFile):
+          raise Exception("config already exists")
+        template=os.path.join(os.path.dirname(__file__),self.CONFIG_TEMPLATE)
+        with open(template,'r') as th:
+          templateData=th.read()
+          templateData=templateData.replace('##LAYER##',name)
+          with open(configFile,'w') as ch:
+            ch.write(templateData)
+        if not os.path.exists(configFile):
+          raise Exception("unable to create %s from template"%configFile)
+        with open(configFile,"r") as fh:
+          data=fh.read()
+        return {'status':'OK','data':data}
+      if url == 'editLayer':
+        name= self._getRequestParam(args,'name',raiseMissing=True)
+        configFile=self._getLayerConfig(name,True)
+        with open(configFile,"r") as fh:
+          data=fh.read()
+        return {'status':'OK','data':data}
+      if url == 'saveLayer':
+        name= self._getRequestParam(args,'name')
+        data = self._getRequestParam(args, 'data')
+        configFile=self._getLayerConfig(name,raiseMissing=True)
+        self._checkAndEnableLayer(name,data)
+        self._safeWriteFile(configFile,data)
+        self._wakeupLoop()  
+        return self.RT_OK
+      if url == 'listConfigs':
+        with open(self._getMainConfig(),'r') as mh:
+            mainCfg=yaml.safe_load(mh)
+        includes=mainCfg.get('base') or []
+        data=self._listConfigs(True)
+        for entry in data:
+          entry['enabled']=entry['name'] in includes
+        return {'status':'OK','data':data}
+      if url == 'enableLayer':
+        name = self._getRequestParam(args, 'name',raiseMissing=True)
+        config=self._getLayerConfig(name,raiseMissing=True,useAllDirs=True)
+        with open(config,'r') as ch:
+          layerData=ch.read()
+        self._checkAndEnableLayer(name,layerData,True)
+        self._wakeupLoop()
+        return self.RT_OK
+      if url == 'disableLayer':
+        name = self._getRequestParam(args, 'name',raiseMissing=True)
+        if not name.endswith('.yaml'):
+          name+=".yaml"
+        with open(self._getMainConfig(),'r') as mh:
+          base=yaml.safe_load(mh)
+        if self._addRemoveInclude(base,name,False):
+          self._safeWriteFile(self._getMainConfig(),yaml.dump(base))
+          self._wakeupLoop()
+          return self.RT_OK
+        return {'status':"config %s not found"%name}
+      if url == 'deleteLayer':
+        name = self._getRequestParam(args, 'name', raiseMissing=True)
+        if not name.endswith('.yaml'):
+          name += ".yaml"
+        allLayers=self._listConfigs(True)
+        for layer in allLayers:
+          if layer['name'] == name:
+            if not layer['editable']:
+              return {'status':"config %s cannot be deleted"%name}
+            with open(self._getMainConfig(),'r') as mh:
+              base=yaml.safe_load(mh)
+            if self._addRemoveInclude(base,name,False):
+              self._safeWriteFile(self._getMainConfig(),yaml.dump(base))
+            os.unlink(layer['path'])
+            self._wakeupLoop()
+            return self.RT_OK
+        return {'status':'config %s not found'%name}
+
     except Exception as e:
-      return {'status':str(e)}
+      return {'status':str(traceback.format_exc())}
+    
     if url == 'getLog':
       asAttach=self._getRequestParam(args,'attach',raiseMissing=False)
       status=self.seedRunner.getStatus()

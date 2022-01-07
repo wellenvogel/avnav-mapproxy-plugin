@@ -1,0 +1,17 @@
+layers:
+  noaa:
+    title: NOAA
+    sources: [c_noaa]
+caches:
+  c_noaa:
+    grids: [webmercator]
+    sources: [s_noaa]
+    meta_size: [1,1]
+    cache:
+      type: mbtiles
+      filename: noaa.mbtiles
+sources:
+  s_noaa:
+    type: tile
+    grid: osm_grid
+    url: https://tileservice.charts.noaa.gov/tiles/50000_1/%(tms_path)s.png

@@ -119,7 +119,7 @@ def layerDictToList(d):
   return rt
 class MapProxyWrapper(object):
   LOGGERS=['mapproxy']
-  def __init__(self,prefix,configFile,logger,loglevel=logging.NOTSET):
+  def __init__(self,prefix,configFile,configDirs,logger,loglevel=logging.NOTSET):
     self.prefix=prefix
     self.configFile=configFile
     self.normalConfig=configFile+".normal"
@@ -134,7 +134,8 @@ class MapProxyWrapper(object):
     self.fatalError=None
     self.configTimeStamp = None
     self.layerMappings={}
-    self.injector=injector.Injector(os.path.dirname(self.configFile))
+    self.injector=injector.Injector(configDirs)
+    self.configDirs=configDirs
 
   def _mergeCfg(self,current,base,isFirstLevel=False):
     for k,v in current.items():
@@ -162,33 +163,48 @@ class MapProxyWrapper(object):
               base[k]=v
     return base
 
-  def _mergeBaseFiles(self,cfg,baseDir):
+  def _mergeBaseFiles(self,cfg,baseData=None):
     if 'base' in cfg:
       baseFiles = cfg.pop('base')
       if isinstance(baseFiles, str):
         baseFiles = [baseFiles]
       for base in baseFiles:
-        if not os.path.isabs(base):
-          base = os.path.join(baseDir, base)
-          baseCfg = self._loadConfigFile(base)
-          cfg = self._mergeCfg(cfg, baseCfg, True)
+        if baseData is not None and baseData.get(base) is not None:
+          baseCfg=baseData[base]
+        else:  
+          if not os.path.isabs(base):
+            found=None
+            for dir in self.configDirs:
+              fn = os.path.join(dir, base)
+              if os.path.exists(fn):
+                found=fn
+                break
+            if found is None:
+                raise Exception("file %s not found in %s"%(base,",".join(self.configDirs)))
+            base=found
+          baseCfg = self._loadConfigFile(base,baseData)
+        cfg = self._mergeCfg(cfg.copy(), baseCfg, True)
     return cfg
 
-  def _loadConfigFile(self,file):
-    baseDir=os.path.dirname(file)
+  def _loadConfigFile(self,file,baseData=None):
     if not os.path.exists(file):
       raise Exception("config file %s not found"%file)
     with open(file,"r") as fh:
       cfg=yaml.safe_load(fh)
       fh.close()
-    return self._mergeBaseFiles(cfg,baseDir)
+    if cfg is None:
+        cfg={}
+    return self._mergeBaseFiles(cfg,baseData)
 
-  def parseAndCheckConfig(self,offline=False,cfg=None):
+  def parseAndCheckConfig(self,offline=False,cfg=None,baseData=None):
+    '''
+    baseData is a dict baseName->content
+    '''
     if cfg is None:
       inputFile=self.configFile
-      cfg=self._loadConfigFile(inputFile)
+      cfg=self._loadConfigFile(inputFile,baseData)
     else:
-      cfg=self._mergeBaseFiles(cfg,os.path.dirname(self.configFile))
+      cfg=self._mergeBaseFiles(cfg,baseData=baseData)
 
     if offline is True:
       sources=cfg.get('sources')

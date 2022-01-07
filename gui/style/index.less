@@ -193,23 +193,7 @@ iframe.demoFrame {
         .cacheDownloadFrame {
             width: 19em;
         }
-        .cacheDownload{
-            display: inline-block;
-            margin-left: 0.2em;
-            background-color: rgba(220 ,220 ,220 ,0.5);
-            padding: 0.3em;
-            border-radius: 5%;
-            border: 1px solid rgba(128,128,128,0.5);
-            text-decoration: none;
-            text-decoration-color: unset;
-            color: unset;
-            font-size: 0.9em;
-            opacity: 0.9;
-            cursor: pointer;
-            max-width: 9em;
-            overflow-x: hidden;
-            text-overflow: ellipsis;
-        }
+
         .value {
             width: 11em;
             overflow: hidden;
@@ -217,11 +201,31 @@ iframe.demoFrame {
             margin-left: 0.3em;
         }
     }
-    #statusLayers {
+    #statusLayers, #statusConfigs {
         flex-direction: column;
         align-items: flex-start;
         border-bottom: unset;
     }
+    #configName{
+        font-size: 1em;
+    }
+}
+.inlineButton{
+    display: inline-block;
+    margin-left: 0.2em;
+    background-color: rgba(220 ,220 ,220 ,0.5);
+    padding: 0.3em;
+    border-radius: 5%;
+    border: 1px solid rgba(128,128,128,0.5);
+    text-decoration: none;
+    text-decoration-color: unset;
+    color: unset;
+    font-size: 0.9em;
+    opacity: 0.9;
+    cursor: pointer;
+    max-width: 9em;
+    overflow-x: hidden;
+    text-overflow: ellipsis;
 }
 .radioFrame {
     display: flex;

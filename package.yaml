@@ -44,3 +44,5 @@ contents:
   dst: /usr/lib/avnav/plugins/mapproxy/boxes
 - src: ./avnav_*.yaml
   dst: /usr/lib/avnav/plugins/mapproxy/
+- src: ./sources/*yaml
+  dst: /usr/lib/avnav/plugins/mapproxy/sources  

@@ -31,7 +31,6 @@
             <div class="state">
                 <span class="label">MapProxy</span>
                 <span class="proxyStatus mpStatusText unknown"></span>
-                <button id="editConfig">Config</button>
                 <span class="value proxySequence"></span>
                 <span class="value proxyError"></span>
             </div>
@@ -40,6 +39,13 @@
                 <span class="seedStatus mpStatusText unknown"></span>
                 <button id="stopSeed" >Kill</button>
                 <span class="value seedInfo"></span>
+            </div>
+            <div class="state" id="statusConfigs">
+            </div>
+            <div class="layerInfo">
+                <span class="label">Add Config</span>
+                <input type="text" class="value" id="configName"/>
+                <div id="addConfig" class="inlineButton button">Add</div>
             </div>
             <div class="state" id="statusLayers">
 

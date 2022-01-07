@@ -44,8 +44,8 @@ class InjectorException(Exception):
   pass
 
 class Injector(object):
-  def __init__(self,configDir):
-    self.configDir=configDir
+  def __init__(self,configDirs):
+    self.configDirs=configDirs
     self.originalHttpClient=None
     self.creationException=None
     try:
@@ -92,10 +92,16 @@ class Injector(object):
     plugin=source.conf.get('plugin')
     if plugin is None:
       return
+    found=None
     if not os.path.isabs(plugin):
-      plugin=os.path.join(self.configDir,plugin)
-    if not os.path.exists(plugin):
-      raise InjectorException("plugin %s not found"%plugin)
+      for dir in self.configDirs:
+        pluginFile=os.path.join(dir,plugin)
+        if os.path.exists(pluginFile):
+          found=pluginFile
+          break
+      if found is None:
+        raise InjectorException("plugin %s not found"%plugin)
+      plugin=found
     pluginModule=loadModuleFromFile(plugin,'injector-')
     prepareMethod=None
     if hasattr(pluginModule,'prepareRequest'):

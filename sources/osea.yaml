@@ -1,0 +1,23 @@
+layers:
+  openseamap:
+    title: Open Seamap seamark
+    sources: [c_openseamap]
+caches:
+  c_openseamap:
+    grids: [webmercator]
+    sources: [s_openstreetmap,s_openseamap]
+    meta_size: [1,1]
+    cache:
+      type: mbtiles
+      filename: openseamap.mbtiles
+sources:
+  s_openstreetmap:
+    type: tile
+    grid: osm_grid_xyz
+    url: https://tile.openstreetmap.org/%(tms_path)s.png
+  s_openseamap:
+    type: tile
+    grid: osm_grid_xyz
+    transparent: true
+    url:  http://t1.openseamap.org/seamark/%(z)s/%(x)s/%(y)s.png
+

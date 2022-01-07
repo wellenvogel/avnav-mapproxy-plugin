@@ -1,0 +1,23 @@
+layers:
+  wsv:
+    title: WSV
+    sources: [c_wsvienc]
+caches:
+  c_wsvienc:
+    grids: [webmercator]
+    sources: [s_wsvienc]
+    meta_size: [1,1]
+    cache:
+      type: mbtiles
+      filename: wsv.mbtiles
+sources:
+  s_wsvienc:
+    type: wms
+    req:
+      url: https://atlas.wsv.bund.de/ienc/wms?
+      layers: Blattschnitte,IENC
+      transparent: true
+    wms_opts:
+      version: 1.1.1
+    supported_srs: ['EPSG:4326']
+    supported_formats: ['png']
