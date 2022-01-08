@@ -656,28 +656,6 @@ class Plugin:
           data=yaml.safe_load(fh)
         return {'status':'OK','data':data}
 
-      if url == 'loadConfig':
-        fname=os.path.join(self.dataDir,self.USER_CONFIG)
-        if not os.path.exists(fname):
-          return {'status':'config file %s not found'%fname}
-        with open(fname,"r") as fh:
-          data=fh.read()
-        return {'status':'OK','data':data}
-
-      if url == 'saveConfig':
-        data = self._getRequestParam(args, 'data')
-        try:
-          parsed=yaml.safe_load(data)
-        except Exception as e:
-          return {'status':'invalid yaml: %s'%str(e)}
-        self.mapproxy.parseAndCheckConfig(
-          offline=not self.networkAvailable,
-          cfg=parsed.copy()
-        )
-        outname=os.path.join(self.dataDir,self.USER_CONFIG)
-        self._safeWriteFile(outname,data)
-        self._wakeupLoop()
-        return self.RT_OK
       if url == 'createLayer':
         name= self._getRequestParam(args,'name',raiseMissing=True)
         configFile=self._getLayerConfig(name)
