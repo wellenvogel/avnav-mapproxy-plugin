@@ -36,16 +36,15 @@ Those cache files can be used as charts on another AvNav instance (e.g. on the A
 
 __Configuration__
 
-With the "config" button you can open an editor for the config file.
+_new since 20220108_<br>
 All the mapproxy related data will be in directories below /home/xxx/avnav/mapproxy
 or /home/pi/avnav/data/mapproxy.
-There are the following config files:
-   * avnav_base.yaml<br>
-     This file is overwritten on every start - you should not change it.   
-   * layers/xxxx.yamll<br>
-     This is the file for your configuration. There should be one file per layer.
+The configuration consists of a couple of yaml files located in a subdirectory "layers". As a recommendation you should have one yaml file for each layer. The plugin will merge together all the configurations when starting mapproxy.
+To add a new configuration enter a name in the "Add Config" row and click "Add". The configuration will be created from a template and you typically only need to fill in the parameters for the source part.
+After saving the config will be disabled. You can enable it on the main tab.<br>
+For each configuration (except the ones delivered with the plugin) you can edit or delete it.<br>
+Beside the user defined configurations there is a base configuration that is part of the plugin [avnav_base.yaml](sources/avnav_base.yaml)
 
-Whenever you changed your configuration the plugin will combine all configurations.     
    
 The config file editor provides some syntax highlighting and some checks for the yaml
 based config files - see [MapProxy Configuration](https://mapproxy.org/docs/nightly/configuration.html)
@@ -218,7 +217,7 @@ s_pluginexample:
     plugin: pluginexample.py
 
 ```
-Additionally you need to put a file 'pluginexample.py' in the mapproxy directory (/home/pi/avnav/data/mapproxy).
+Additionally you need to put a file 'pluginexample.py' in the mapproxy directory (/home/pi/avnav/data/mapproxy/layers).
 Within this file you can implement 2 methods:
 ```python
 def prepareRequest(url,headers):
@@ -251,7 +250,7 @@ the proxy will not start.
 
 Changes
 -------
-__202201xx__
+__20220108__
 *  change the config handling to separate config files in the directory
 <avnavBase>/mapproxy/layers
    
