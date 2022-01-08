@@ -754,7 +754,7 @@ class Plugin:
         return {'status':'config %s not found'%name}
 
     except Exception as e:
-      return {'status':str(traceback.format_exc())}
+      return {'status':str(e)}
     
     if url == 'getLog':
       asAttach=self._getRequestParam(args,'attach',raiseMissing=False)

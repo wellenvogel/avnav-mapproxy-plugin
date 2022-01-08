@@ -30,6 +30,7 @@ from wsgiref.headers import Headers
 from wsgiref.simple_server import ServerHandler
 import yaml
 from mapproxy.wsgiapp import make_wsgi_app
+from mapproxy.config.spec import validate_options
 def loadModuleFromFile(fileName):
   if not os.path.isabs(fileName):
     fileName=os.path.join(os.path.dirname(__file__),fileName)
@@ -211,7 +212,9 @@ class MapProxyWrapper(object):
       if sources is not None:
         for k,v in sources.items():
           v['seed_only']=True
-
+    (errors,infoOnly)=validate_options(cfg)
+    if not infoOnly:
+        raise Exception(",".join(list(filter(lambda a: not a.startswith('unknown'),errors))))
     layer2caches = {}
     layers = cfg.get('layers')
     caches = cfg.get('caches')
