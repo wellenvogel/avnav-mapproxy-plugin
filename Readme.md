@@ -250,6 +250,9 @@ the proxy will not start.
 
 Changes
 -------
+__20220128__
+* fix an error on new installation with no avnav_user.yaml
+
 __20220108__
 *  change the config handling to separate config files in the directory
 <avnavBase>/mapproxy/layers
