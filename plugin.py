@@ -383,8 +383,10 @@ class Plugin:
       if not os.path.exists(mainCfg):
         self.api.log("creating main cfg %s"%mainCfg)
         data={}
-        for i in [self.BASE_CONFIG,self.USER_CONFIG]:
-          self._addRemoveInclude(data, i, True)
+        self._addRemoveInclude(data, self.BASE_CONFIG, True)
+        userConfig = os.path.join(self.dataDir, self.USER_CONFIG)
+        if os.path.exists(userConfig):
+          self._addRemoveInclude(data, self.USER_CONFIG, True)
         for i in self._listConfigs():
           self._addRemoveInclude(data,i['name'],True)
         yamldata = yaml.dump(data)
@@ -443,7 +445,7 @@ class Plugin:
       self.api.setStatus("ERROR","exception in startup: %s"%str(e))
       raise
     self.api.log("started")
-    configFile = os.path.join(self.dataDir, self.USER_CONFIG)
+    configFile = os.path.join(self.dataDir, self.INCLUDE_CONFIG)
     self.api.setStatus("INACTIVE","starting with config file %s"%configFile)
     while startSequence == self.startSequence:
       incrementSequence=False

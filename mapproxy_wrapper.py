@@ -139,6 +139,8 @@ class MapProxyWrapper(object):
     self.configDirs=configDirs
 
   def _mergeCfg(self,current,base,isFirstLevel=False):
+    if not isinstance(base,dict):
+      raise Exception("invalid base type - must be dict")
     for k,v in current.items():
       if not k in base:
         base[k]=v
@@ -170,6 +172,7 @@ class MapProxyWrapper(object):
       if isinstance(baseFiles, str):
         baseFiles = [baseFiles]
       for base in baseFiles:
+        fn=None
         if baseData is not None and baseData.get(base) is not None:
           baseCfg=baseData[base]
         else:  
@@ -184,7 +187,13 @@ class MapProxyWrapper(object):
                 raise Exception("file %s not found in %s"%(base,",".join(self.configDirs)))
             base=found
           baseCfg = self._loadConfigFile(base,baseData)
-        cfg = self._mergeCfg(cfg.copy(), baseCfg, True)
+        try:
+          cfg = self._mergeCfg(cfg.copy(), baseCfg, True)
+        except Exception as e:
+          if fn is not None:
+            raise Exception("error merging %s:%s"%(fn,str(e)))
+          else:
+            raise
     return cfg
 
   def _loadConfigFile(self,file,baseData=None):
