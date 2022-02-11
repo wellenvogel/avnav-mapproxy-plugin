@@ -570,6 +570,14 @@ class Plugin:
       self.api.log("change layer %s enabled=%s"%(name,enable))
       self._safeWriteFile(self._getMainConfig(), yaml.dump(cfg))
 
+  def _touchConfig(self):
+    fn=self._getMainConfig()
+    if os.path.exists(fn):
+      try:
+        os.utime(fn,None)
+      except:
+        pass
+
   def handleApiRequest(self,url,handler,args):
     """
     handler for API requests send from the JS
@@ -686,6 +694,7 @@ class Plugin:
         configFile=self._getLayerConfig(name,raiseMissing=True)
         self._checkAndEnableLayer(name,data)
         self._safeWriteFile(configFile,data)
+        self._touchConfig()
         self._wakeupLoop()  
         return self.RT_OK
       if url == 'listConfigs':

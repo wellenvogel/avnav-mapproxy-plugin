@@ -250,6 +250,9 @@ the proxy will not start.
 
 Changes
 -------
+__20220211__
+* ensure a reload of the mapproxy config when one of the layer configs is saved
+
 __20220128__
 * fix an error on new installation with no avnav_user.yaml
 
