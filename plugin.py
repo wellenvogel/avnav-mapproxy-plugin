@@ -416,6 +416,7 @@ class Plugin:
                                                 self.api)
       self.seedRunner=seedRunner.SeedRunner(self._getDataDir(self.WD_SEED),
                                             self.mapproxy.getConfigName(False), #only if online...
+                                            configDirs,
                                             self.api)
       self.seedRunner.checkRestart()
       # we register an handler for API requestscreateSeed(boundsFile,seedFile,name,cache,logger=None):

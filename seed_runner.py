@@ -61,7 +61,7 @@ class SeedRunner(object):
   PROGRESS_FILE="progress"
   LOGFILE="seed.log"
   INFOFILE="info.yaml"
-  def __init__(self,workdir,configFile,logHandler=None,keepLogs=20):
+  def __init__(self,workdir,configFile,configDirs,logHandler=None,keepLogs=20):
     self.workdir=workdir
     if not os.path.isdir(workdir):
       raise Exception("workdir %s does not exist"%workdir)
@@ -77,6 +77,7 @@ class SeedRunner(object):
     self.cacheNames=None
     self.selectionName=None
     self.pause=False
+    self.configDirs=configDirs
 
   def logDebug(self,fmt,*args):
     if (self.logHandler):
@@ -149,6 +150,7 @@ class SeedRunner(object):
                                  __file__,
                                  '-s', self._currentConfig(),
                                  '-f',self.configFile,
+                                 '-p',",".join(self.configDirs),
                                  '-c','1',
                                  '--progress-file', self._progressFile(),
                                    '--continue'],
@@ -332,14 +334,19 @@ if __name__ == '__main__':
   cfgFile=None
   seedFile=None
   lastFlag=None
+  cfgDirs=''
+  hasP=False
   for arg in sys.argv[1:]:
-    if arg == '-f' or arg == '-s':
+    if arg == '-f' or arg == '-s' or arg == '-p':
       lastFlag=arg
       continue
     if lastFlag == '-f':
       cfgFile=arg
     if lastFlag == '-s':
       seedFile=arg
+    if lastFlag == '-p':
+      hasP=True
+      cfgDirs=arg
     lastFlag=None
 
   if not cfgFile:
@@ -348,7 +355,12 @@ if __name__ == '__main__':
   if not seedFile:
     print("no parameter -s found",file=sys.stderr)
     sys.exit(1)
-  injector=injector.Injector(os.path.dirname(cfgFile))
+  if hasP:
+    sys.argv.remove('-p')
+    sys.argv.remove(cfgDirs)
+  cfgDirs=cfgDirs.split(',')
+  cfgDirs.append(os.path.dirname(cfgFile))  
+  injector=injector.Injector(cfgDirs)
   injector.checkCreatedIfNeeded(cfgFile)
   seedMain=SeedMain()
   parentPid=os.environ.get(ENV_PID)

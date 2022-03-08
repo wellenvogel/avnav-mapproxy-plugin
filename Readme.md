@@ -250,6 +250,9 @@ the proxy will not start.
 
 Changes
 -------
+__20220308__
+* make plugins working again in seed
+
 __20220211__
 * ensure a reload of the mapproxy config when one of the layer configs is saved
 
