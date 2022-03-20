@@ -250,6 +250,9 @@ the proxy will not start.
 
 Changes
 -------
+__20220320__
+* correct "isAlive" error in seed
+
 __20220308__
 * make plugins working again in seed
 

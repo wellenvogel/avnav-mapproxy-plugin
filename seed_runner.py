@@ -325,7 +325,7 @@ class SeedMain(object):
   def isAlive(self):
     if self.runner is None:
       return False
-    return self.runner.isAlive()
+    return self.runner.is_alive()
 
 
 if __name__ == '__main__':
