@@ -1,0 +1,24 @@
+layers:
+  noaaenc:
+    title: NOAA ENC
+    sources: [c_noaaenc]
+
+caches:
+  c_noaaenc:
+    grids: [webmercator]
+    sources: [s_noaaenc]
+    meta_size: [1,1]
+    cache:
+      type: mbtiles
+      filename: noaaenc.mbtiles
+
+sources:
+  s_noaaenc:
+    type: arcgis
+    req:
+      layers: show:0,1,2,3,4,5,6,7
+      url: https://gis.charttools.noaa.gov/arcgis/rest/services/MCS/ENCOnline/MapServer/exts/MaritimeChartService/MapServer
+      transparent: true
+    on_error:
+      500:
+        response: transparent

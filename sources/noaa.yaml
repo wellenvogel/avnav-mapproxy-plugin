@@ -5,16 +5,8 @@ layers:
 caches:
   c_noaa:
     grids: [webmercator]
-    sources: [s_noaa]
+    sources: []
     meta_size: [1,1]
     cache:
       type: mbtiles
       filename: noaa.mbtiles
-sources:
-  s_noaa:
-    type: tile
-    grid: osm_grid
-    url: https://tileservice.charts.noaa.gov/tiles/50000_1/%(tms_path)s.png
-    http:
-      headers:
-        Cookie: tileset-page=%2350000_1-locator; tileservice-disclaimer-accepted=true
