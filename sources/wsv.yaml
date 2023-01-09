@@ -14,7 +14,7 @@ sources:
   s_wsvienc:
     type: wms
     req:
-      url: https://atlas.wsv.bund.de/ienc/wms?
+      url: https://via.bund.de/wsv/ienc/wms?
       layers: Blattschnitte,IENC
       transparent: true
     wms_opts:
