@@ -250,6 +250,9 @@ the proxy will not start.
 
 Changes
 -------
+__20230214__
+* add rws (netherlands) - enable it at main settings!
+
 __20230109__
 * change WSV (german inland enc)
 * update map boxes
