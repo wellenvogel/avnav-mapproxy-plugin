@@ -1,0 +1,20 @@
+layers:
+  norge:
+    title: Kartverket
+    sources: [c_norge]
+
+caches:
+  c_norge:
+    grids: [webmercator]
+    sources: [s_norge]
+    meta_size: [1,1]
+    cache:
+      type: mbtiles
+      filename: norge.mbtiles
+
+sources:
+  s_norge:
+    type: tile
+    grid: GLOBAL_WEBMERCATOR
+    url: https://cache.kartverket.no/sjokartraster/v1/wmts/1.0.0/?layer=sjokartraster&style=default&tilematrixset=googlemaps&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image/png&TileMatrix=%(z)s&TileCol=%(x)s&TileRow=%(y)s
+
