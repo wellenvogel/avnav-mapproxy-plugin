@@ -20,6 +20,10 @@
 globals:
   srs:
      axis_order_ne: ['EPSG:3006']
+  image:
+    paletted: false
+    resampling_method: bilinear
+
 services:
   demo:
   tms:
@@ -50,7 +54,7 @@ sources:
     grid: osm_grid
     url:  https://b.tile.geofabrik.de/23228979966ae9040ceb0597251e12a2/%(z)s/%(x)s/%(y)s.png
     transparent: true
-    
+
 
 grids:
     webmercator:
