@@ -1,11 +1,11 @@
 layers:
   openseamap:
-    title: Open Seamap
+    title: OpenSeaMap
     sources: [c_openseamap]
 caches:
   c_openseamap:
     grids: [webmercator]
-    sources: [s_openstreetmap,s_openseamap]
+    sources: [s_openseamap]
     cache:
       type: mbtiles
       filename: openseamap.mbtiles

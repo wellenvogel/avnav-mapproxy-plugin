@@ -1,0 +1,17 @@
+layers:
+  wim:
+    title: World Imagery
+    sources: [c_wim]
+caches:
+  c_wim:
+    grids: [webmercator]
+    sources: [s_wim]
+    cache:
+      type: mbtiles
+      filename: wim.mbtiles
+sources:
+  s_wim:
+    type: tile
+    grid: osm_grid_xyz
+    url: https://server.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/tile/%(z)s/%(y)s/%(x)s
+    transparent: true

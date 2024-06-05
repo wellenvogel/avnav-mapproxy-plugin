@@ -5,39 +5,45 @@ layers:
 caches:
   c_bsh:
     grids: [webmercator]
-    sources: [s_bshskin,s_bshhydro,s_bshtopo,s_bshrocks,s_bshaids]
+    sources: [s_bshbathy,s_bshhydro,s_bshtopo,s_bshrocks,s_bshaids]
     meta_size: [6,6]
     cache:
       type: mbtiles
       filename: bsh.mbtiles
 sources:
+  s_bshbathy:
+    type: wms
+    req:
+      url: https://gdi.bsh.de/mapservice_gs/ELC_INSPIRE/ows
+      layers: EL.GridCoverage
+      transparent: true
   s_bshskin:
     type: wms
     req:
-      url: https://gdi.bsh.de/mapservice_gs/NAUTHIS_SkinOfTheEarth/ows?
+      url: https://gdi.bsh.de/mapservice_gs/NAUTHIS_SkinOfTheEarth/ows
       layers: Coastal_Depth_area,Approach_Depth_area,Harbour_Depth_area
       transparent: true
   s_bshhydro:
     type: wms
     req:
-      url: https://gdi.bsh.de/mapservice_gs/NAUTHIS_Hydrography/ows?
+      url: https://gdi.bsh.de/mapservice_gs/NAUTHIS_Hydrography/ows
       layers: Approach_Depths,Approach_Fishing_Facility_Marine_Farm_Areas,Approach_Offshore_Installations,Approach_Areas_Limits
       transparent: true
   s_bshtopo:
     type: wms
     req:
-      url: https://gdi.bsh.de/mapservice_gs/NAUTHIS_Topography/ows?
+      url: https://gdi.bsh.de/mapservice_gs/NAUTHIS_Topography/ows
       layers: 4_Approach,5_Harbour
       transparent: true
   s_bshaids:
     type: wms
     req:
-      url: https://gdi.bsh.de/mapservice_gs/NAUTHIS_AidsAndServices/ows?
+      url: https://gdi.bsh.de/mapservice_gs/NAUTHIS_AidsAndServices/ows
       layers: Coastal_Lights,Coastal_Lateral_Beacons,Coastal_Cardinal_Beacons,Coastal_All_Other_Beacons,Coastal_Lateral_Buoys,Coastal_Cardinal_Buoys,Coastal_All_Other_Buoys,Coastal_Fog_Signals_Daymarks,Approach_Lights,Approach_Lateral_Beacons,Approach_Cardinal_Beacons,Approach_All_Other_Beacons,Approach_Lateral_Buoys,Approach_Cardinal_Buoys,Approach_All_Other_Buoys,Approach_Fog_Signals_Daymarks,Harbour_Lights,Harbour_Lateral_Beacons,Harbour_Cardinal_Beacons,Harbour_All_Other_Beacons,Harbour_Lateral_Buoys,Harbour_Cardinal_Buoys,Harbour_All_Other_Buoys,Harbour_Fog_Signals_Daymarks
       transparent: true
   s_bshrocks:
     type: wms
     req:
-      url: https://gdi.bsh.de/mapservice_gs/NAUTHIS_RocksWrecksObstructions/ows?
+      url: https://gdi.bsh.de/mapservice_gs/NAUTHIS_RocksWrecksObstructions/ows
       layers: 4_Approach,5_Harbour
       transparent: true

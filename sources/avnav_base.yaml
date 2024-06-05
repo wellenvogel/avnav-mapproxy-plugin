@@ -31,30 +31,26 @@ services:
     # origin for /tiles service
     origin: 'nw'
   wms:
-    md:
-      title: MapProxy WMS Proxy
-      abstract: This is a minimal MapProxy example.
 
 layers:
   base:
-    title: OSM Geofabrik
+    title: OpenStreetMap
     sources: [c_base]
 
 caches:
   c_base:
     grids: [webmercator]
-    sources: [s_geofabrik]
+    sources: [s_base]
     cache:
       type: mbtiles
-      filename: geofabrik.mbtiles
+      filename: base.mbtiles
 
 sources:
-  s_geofabrik:
+  s_base:
     type: tile
     grid: osm_grid
-    url:  https://b.tile.geofabrik.de/23228979966ae9040ceb0597251e12a2/%(z)s/%(x)s/%(y)s.png
+    url:  https://tile.openstreetmap.org/%(tms_path)s.png
     transparent: true
-
 
 grids:
     webmercator:
