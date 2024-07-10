@@ -7,7 +7,8 @@ module.exports = {
   entry: path.resolve(__dirname,'./src/index.js'),
   output: {
     path: path.resolve(__dirname, 'build'),
-    filename: 'bundle.js'
+    filename: 'bundle.js',
+      hashFunction: "xxhash64"
   },
   plugins: [
     new CopyPlugin({
@@ -53,7 +54,8 @@ module.exports = {
               loader: 'file-loader',
               options:{
                   outputPath: 'lib',
-                  publicPath: 'lib'
+                  publicPath: 'lib',
+                  name: '[sha256:hash].[ext]'
               }
           }
       ]
