@@ -27,7 +27,6 @@ import SeedMap from "./map";
 import Prismjs from 'prismjs';
 import CodeFlask from "codeflask";
 import yaml from 'js-yaml';
-import FileDownload from 'js-file-download';
 import 'whatwg-fetch';
 import {
     buttonEnable,
@@ -79,7 +78,7 @@ import {
         if (! filename) return;
         let data=getAndCheckConfig();
         if (! data) return;
-        FileDownload(data,filename);
+        downloadData(data,filename);
     }
     let saveConfig=function(){
         let data=getAndCheckConfig();
@@ -98,7 +97,10 @@ import {
             return ;
         }
     }
-
+    let downloadData=function(data,name){
+        const url="downloadData?data="+encodeURIComponent(data)+"&name="+encodeURIComponent(name);
+        document.getElementById('downloadFrame').setAttribute('src',base+"/api/"+url);
+    }
     let saveSelections=function(seedFor){
         let name="default";
         let ne=document.getElementById('selectionName');
@@ -132,10 +134,10 @@ import {
         let ne=document.getElementById('selectionName');
         if (ne) name=ne.value;
         let bounds=map.getSelectionBounds();
-        name=safeName(name);
+        name=safeName(name)+".yaml";
         let data=yaml.dump(bounds,{schema:yaml.JSON_SCHEMA});
         if (! data) return;
-        FileDownload(data,name+".yaml");
+        downloadData(data,name);
     }
     let uploadSelection=()=>{
         let fi=document.getElementById('uploadInput');

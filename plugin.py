@@ -746,6 +746,20 @@ class Plugin:
     except Exception as e:
       return {'status':str(e)}
     
+    if url == 'downloadData':
+      name=self._getRequestParam(args,'name')
+      data = self._getRequestParam(args, 'data')
+      handler.send_response(200, "OK")
+      handler.send_header('Content-Type', 'application/octet-stream')
+      handler.send_header("Last-Modified", handler.date_time_string())
+      handler.send_header('Content-Disposition',
+                           'attachment;filename="%s"'%name)
+      
+      handler.send_header('Content-Length',str(len(data)))
+      handler.end_headers()
+      handler.wfile.write(data.encode('utf-8'))
+      handler.close_connection=True
+      return True                    
     if url == 'getLog':
       asAttach=self._getRequestParam(args,'attach',raiseMissing=False)
       status=self.seedRunner.getStatus()

@@ -38,7 +38,6 @@
   },
   "dependencies": {
     "codeflask": "^1.4.1",
-    "js-file-download": "^0.4.12",
     "js-yaml": "^4.0.0",
     "leaflet": "^1.7.1",
     "leaflet-draw": "^1.0.4",

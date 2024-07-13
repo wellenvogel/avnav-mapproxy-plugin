@@ -241,3 +241,17 @@ export const changeRadio=(parent,value)=>{
     })
 }
 
+export const toBase64=(val)=>{
+    if (typeof(val) === 'string'){
+        val=new TextEncoder().encode(val);
+        const binString=Array.from(val,(byte)=>{
+            return String.fromCodePoint(byte)
+        }).join("");
+        return window.btoa(binString);
+    }
+    return window.btoa(val);
+}
+
+export const buildDataUrl=(data)=>{
+    return "data:application/octet-stream;base64,"+toBase64(data);
+}
