@@ -250,6 +250,10 @@ the proxy will not start.
 
 Changes
 -------
+__20240713__
+* make download of config and seed working in BonjourBrowser
+* set the metadata in the mbtiles caches to avoid the need to change to xyz manually when using it in AvNav
+
 __20230214__
 * add rws (netherlands) - enable it at main settings!
 
