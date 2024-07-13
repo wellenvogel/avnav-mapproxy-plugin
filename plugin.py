@@ -31,6 +31,7 @@ import time
 import traceback
 import urllib.parse
 from datetime import datetime
+import sqlite3
 
 
 import yaml
@@ -284,7 +285,7 @@ class Plugin:
       return []
     return rt
 
-  def _getCacheFile(self,cacheName,checkExistance=False):
+  def _getCacheFile(self,cacheName,checkExistance=False,insertMeta=False):
     for clist in self.layer2caches.values():
       for c in clist:
         if c.get('name') == cacheName:
@@ -298,6 +299,24 @@ class Plugin:
             if not checkExistance:
               return name
             if os.path.exists(name):
+              if insertMeta:
+                try:
+                  schema='xyz'
+                  self.api.debug("updating metadata for %s",name)
+                  con= sqlite3.connect(name)
+                  cu = con.cursor()
+                  rs=cu.execute("select value from metadata where name=?", ["avnav_scheme"])
+                  row=rs.fetchone()
+                  if row is not None:
+                    if row[0] != schema:
+                      cu.execute("update metadata set value=? where name='avnav_scheme'",[schema])
+                      con.commit()
+                  else:
+                    cu.execute("insert into metadata (name,value) values ('avnav_scheme',?)",[schema])
+                    con.commit()
+                  con.close()
+                except Exception as e:
+                  self.api.debug("error setting mbtiles metadata: %s",str(e))
               return name
 
   def _wakeupLoop(self):
@@ -782,7 +801,7 @@ class Plugin:
 
     if url == 'getCacheFile':
       name=self._getRequestParam(args,'name')
-      fileName=self._getCacheFile(name,checkExistance=True)
+      fileName=self._getCacheFile(name,checkExistance=True,insertMeta=True)
       if fileName is None:
         raise Exception("cache file for %s not found"%name)
       with open(fileName,'rb') as fh:
