@@ -25,7 +25,6 @@
     "babel-plugin-prismjs": "^2.0.1",
     "copy-webpack-plugin": "^7.0.0",
     "css-loader": "^7.1.2",
-    "file-loader": "^6.2.0",
     "less": "^4.2.0",
     "less-loader": "^12.2.0",
     "mini-css-extract-plugin": "^2.9.0",
