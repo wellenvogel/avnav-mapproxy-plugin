@@ -6,7 +6,8 @@ caches:
   c_wsvienc:
     grids: [webmercator]
     sources: [s_wsvienc]
-    meta_size: [1,1]
+    meta_size: [6,6]
+    meta_buffer: 200
     cache:
       type: mbtiles
       filename: wsv.mbtiles
@@ -17,7 +18,3 @@ sources:
       url: https://via.bund.de/wsv/ienc/wms?
       layers: Blattschnitte,IENC
       transparent: true
-    wms_opts:
-      version: 1.1.1
-    supported_srs: ['EPSG:4326']
-    supported_formats: ['png']
