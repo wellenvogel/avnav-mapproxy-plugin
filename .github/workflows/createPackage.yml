@@ -76,7 +76,7 @@ jobs:
           asset_content_type: application/octet-stream    
 
       - name: Upload Repository
-        uses:  wellenvogel/sftp-upload-action@v1.0
+        uses:  wellenvogel/sftp-upload-action@v2.0
         with:
           privateKey: '${{ secrets.REPO_KEY }}'
           server: '${{ secrets.REPO_SERVER }}'
