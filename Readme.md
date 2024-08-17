@@ -250,6 +250,14 @@ the proxy will not start.
 
 Changes
 -------
+__20240817__
+* merge PR #13
+* have openseamap as overlay and as combined layer with OSM
+* allow to include the base layer in seeds
+* allow to empty cache files
+* use some unicode icons for buttons on main page
+* fix a bug in the exception logging
+
 __20240714__
 * merge PR #14 (updated chart sources)
 * make download of config and seed working in BonjourBrowser

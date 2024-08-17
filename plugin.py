@@ -318,6 +318,16 @@ class Plugin:
                 except Exception as e:
                   self.api.debug("error setting mbtiles metadata: %s",str(e))
               return name
+  def _emptyCache(self,cacheName):
+    cacheFile=self._getCacheFile(cacheName,checkExistance=True)
+    self.api.debug("deleting data for %s",cacheName)
+    con= sqlite3.connect(cacheFile)
+    try:
+      con.execute("delete from tiles")
+      con.commit()
+    finally:
+      con.close()
+    
 
   def _wakeupLoop(self):
     self.condition.acquire()
@@ -765,6 +775,10 @@ class Plugin:
             self._wakeupLoop()
             return self.RT_OK
         return {'status':'config %s not found'%name}
+      if url== 'emptyCache':
+        cacheName=self._getRequestParam(args,"name",raiseMissing=True)
+        self._emptyCache(cacheName)
+        return self.RT_OK
 
     except Exception as e:
       return {'status':str(e)}
