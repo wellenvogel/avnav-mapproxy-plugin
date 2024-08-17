@@ -2,23 +2,21 @@ layers:
   noaaenc:
     title: NOAA ENC
     sources: [c_noaaenc]
-
 caches:
   c_noaaenc:
     grids: [webmercator]
     sources: [s_noaaenc]
-    meta_size: [1,1]
+    meta_size: [6,6]
+    meta_buffer: 200
     cache:
       type: mbtiles
       filename: noaaenc.mbtiles
-
 sources:
   s_noaaenc:
-    type: arcgis
+    type: wms
     req:
-      layers: show:0,1,2,3,4,5,6,7
-      url: https://gis.charttools.noaa.gov/arcgis/rest/services/MCS/ENCOnline/MapServer/exts/MaritimeChartService/MapServer
+#       https://www.nauticalcharts.noaa.gov/data/gis-data-and-services.html
+      url: https://gis.charttools.noaa.gov/arcgis/rest/services/MCS/ENCOnline/MapServer/exts/MaritimeChartService/WMSServer # ECDIS
+#      url: https://gis.charttools.noaa.gov/arcgis/rest/services/MCS/NOAAChartDisplay/MapServer/exts/MaritimeChartService/WMSServer # paper
+      layers: 0,1,2,3,4,5,6,7
       transparent: true
-    on_error:
-      500:
-        response: transparent

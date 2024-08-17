@@ -32,7 +32,7 @@ You can also download the cache files here (if you configured them to by in mbti
 Those cache files can be used as charts on another AvNav instance (e.g. on the Android App).
 
 *Hint*: The mbtiles files are in xyz format - so you need to [set this](https://www.wellenvogel.net/software/avnav/docs/userdoc/downloadpage.html?lang=en#h3:Charts-mbtilesFormat)
- explicitely in AvNav when you upload them to another instance.
+ explicitely in AvNav when you upload them to another instance. Versions of mapproxy starting from 20240714 will set a marker in the downloaded mbtiles file so that AvNav will detect this automatically.
 
 __Configuration__
 
@@ -250,6 +250,11 @@ the proxy will not start.
 
 Changes
 -------
+__20240714__
+* merge PR #14 (updated chart sources)
+* make download of config and seed working in BonjourBrowser
+* set the metadata in the mbtiles caches to avoid the need to change to xyz manually when using it in AvNav
+
 __20230214__
 * add rws (netherlands) - enable it at main settings!
 

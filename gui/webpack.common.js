@@ -7,7 +7,8 @@ module.exports = {
   entry: path.resolve(__dirname,'./src/index.js'),
   output: {
     path: path.resolve(__dirname, 'build'),
-    filename: 'bundle.js'
+    filename: 'bundle.js',
+      hashFunction: "xxhash64"
   },
   plugins: [
     new CopyPlugin({
@@ -50,11 +51,7 @@ module.exports = {
           },
           {
               test: /\.(ttf|eot|svg|png|jpg|gif|ico)(\?v=[0-9]\.[0-9]\.[0-9])?$/,
-              loader: 'file-loader',
-              options:{
-                  outputPath: 'lib',
-                  publicPath: 'lib'
-              }
+              type: 'asset/resource'
           }
       ]
   },
