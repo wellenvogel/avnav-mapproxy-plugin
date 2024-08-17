@@ -280,19 +280,31 @@ import {
         addEl('span','value',lf,(layer.name||'').replace(/^mp-/,''));
         let caches=layer.caches;
         if (caches){
-            let cf=addEl('div','cacheDownloadFrame',lf);
             for (let cname in caches){
                 let cache=caches[cname];
                 let ccfg=cache.cache ||{};
                 if (ccfg && ccfg.type === 'mbtiles' && ccfg.filename){
-                    let el=addEl('div','cacheDownload inlineButton',cf,cache.name||'');
+                    let cf=addEl('div','cacheDownloadFrame',lf);
+                    let el=addEl('div','cacheDownload inlineButton icon',cf,String.fromCharCode(8615));
+                    el.setAttribute('title',"Download "+cache.name);
                     el.setAttribute('data-href',base+'/api/getCacheFile?name='+encodeURIComponent(cache.name));
                     el.addEventListener('click',(ev)=>{
                         let url=ev.target.getAttribute('data-href');
                         document.getElementById('downloadFrame').setAttribute('src',url);
                     });
+                    let empty=addEl('div','cacheEmpty inlineButton icon',cf,String.fromCharCode(9932));
+                    empty.setAttribute('title',"empty "+cache.name);
+                    empty.addEventListener('click',(ev)=>{
+                        if (confirm("Really delete all data from "+cache.name+" ?")){
+                            apiRequest(base,"emptyCache?name="+encodeURIComponent(cache.name))
+                                .then(()=>{})
+                                .catch((e)=>alert(e));
+                        }
+
+                    })
                 }
                 else{
+                    let cf=addEl('div','cacheDownloadFrame',lf);
                     addEl('span','cacheName',cf,cache.name);
                 }
             }
