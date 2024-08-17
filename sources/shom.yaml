@@ -1,0 +1,22 @@
+layers:
+  shom:
+    title: SHOM
+    sources: [c_shom]
+
+caches:
+  c_shom:
+    grids: [webmercator]
+    sources: [s_shom]
+    meta_size: [1,1]
+    cache:
+      type: mbtiles
+      filename: shom.mbtiles
+
+sources:
+  s_shom:
+    type: tile
+    grid: GLOBAL_WEBMERCATOR
+    url: https://services.data.shom.fr/clevisu/wmts?layer=RASTER_MARINE_3857_WMTS&style=normal&tilematrixset=3857&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image%%2Fpng&TileMatrix=%(z)s&TileCol=%(x)s&TileRow=%(y)s
+    http:
+      headers:
+        Referer: https://data.shom.fr/
