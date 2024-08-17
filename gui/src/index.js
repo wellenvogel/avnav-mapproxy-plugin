@@ -115,6 +115,10 @@ import {
             if (reloadDays !== undefined){
                 url+="&reloadDays="+encodeURIComponent(reloadDays);
             }
+            let addBase=document.getElementById('includeBase');
+            if (addBase && addBase.checked){
+                url+="&baseLayer="+encodeURIComponent("base");
+            }
         }
         apiRequest(base,url
         )

@@ -642,10 +642,14 @@ class Plugin:
         with open(outname,"w") as oh:
           yaml.dump(decoded,oh)
         if startSeed is not None:
+          baseLayer=self._getRequestParam(args,'baseLayer',raiseMissing=False)
           layerName=startSeed
           caches=self.layer2caches.get(layerName)
           if caches is None:
             return {'status':'no caches found for layer %s'%layerName}
+          baseCaches=self.layer2caches.get(baseLayer)
+          if type(baseCaches) is list:
+            caches=caches + baseCaches
           seedName = "seed-" + datetime.now().strftime('%Y%m%d-%H%M%s')
           cacheNames=list(map(lambda x:x['name'],caches))
           reloadDays=self._getRequestParam(args,'reloadDays',raiseMissing=False)
