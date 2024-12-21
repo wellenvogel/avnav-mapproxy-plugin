@@ -1,0 +1,23 @@
+layers:
+  fi-s57:
+    title: fi-s57
+    sources: [c_fi-s57]
+caches:
+  c_fi-s57:
+    grids: [webmercator]
+    sources: [s_fi-s57]
+    meta_size: [1,1]
+    cache:
+      type: mbtiles
+      filename: fi-s57.mbtiles
+sources:
+  s_fi-s57:
+    type: wms
+    req:
+      url: https://julkinen.traficom.fi/s57/wms
+      layers: cells
+      style: style-id-201
+    wms_opts:
+      version: 1.1.1
+    supported_formats: ['image/png']
+    supported_srs: ['EPSG:3857']
