@@ -1,0 +1,27 @@
+layers:
+  ihm:
+    title: IHM
+    sources: [c_ihm]
+
+caches:
+  c_ihm:
+    grids: [webmercator]
+    sources: [s_ihm]
+    meta_size: [1,1]
+    cache:
+      type: mbtiles
+      filename: ihm.mbtiles
+
+sources:
+  s_ihm:
+    type: wms
+    req:
+      url: https://ideihm.covam.es/encwms
+      layers: ENC
+      transparent: false
+    wms_opts: 
+      version: 1.3.0
+    supported_formats: ['image/png']
+    supportd_srs: ['EPSG:3857']
+    height: 256
+    width: 256
