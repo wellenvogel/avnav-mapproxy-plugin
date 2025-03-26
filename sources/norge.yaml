@@ -14,7 +14,18 @@ caches:
 
 sources:
   s_norge:
-    type: tile
-    grid: GLOBAL_WEBMERCATOR
-    url: https://cache.kartverket.no/sjokartraster/v1/wmts/1.0.0/?layer=sjokartraster&style=default&tilematrixset=googlemaps&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image/png&TileMatrix=%(z)s&TileCol=%(x)s&TileRow=%(y)s
+    type: wms
+    req:
+      url: https://wms.geonorge.no/skwms1/wms.sjokartraster2
+      oversample_ratio: 4
+      LAYERS: all
+      TRANSPARENT: true
+    wms_opts:
+      version: 1.1.1
+    supported_formats: ['image/png']
+    supported_srs: ['EPSG:25833']
+    http:
+      headers:
+        Referer: https://www.norgeskart.no/
+        User-Agent: Mozilla/5.0 AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36
 
