@@ -1,19 +1,23 @@
 layers:
-  openseamap:
+  - name: openseamap
     title: OpenSeaMap
+    sources: [c_openseamapcomb]
+  - name: openseamap-ovl
+    title: OpenSeaMap Overlay
     sources: [c_openseamap]
 caches:
   c_openseamap:
     grids: [webmercator]
-    sources: [s_openstreetmap, s_openseamap]
+    sources: [s_openseamap]
     cache:
       type: mbtiles
       filename: openseamap.mbtiles
+
+  c_openseamapcomb:
+    grids: [webmercator]
+    sources: [c_base,c_openseamap]
+    disable_storage: true
 sources:
-  s_openstreetmap:
-    type: tile
-    grid: osm_grid_xyz
-    url: https://tile.openstreetmap.org/%(tms_path)s.png
   s_openseamap:
     type: tile
     grid: osm_grid_xyz

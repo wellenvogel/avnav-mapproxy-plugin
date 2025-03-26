@@ -75,7 +75,7 @@ class OwnLogHandler(logging.Handler):
   def emit(self, record):
     if isinstance(record.msg,BaseException):
       exc=record.msg
-      estr=traceback.format_exception(etype=type(exc), value=exc, tb=exc.__traceback__)
+      estr=traceback.format_exception(exc)
       for st in estr:
         self.logger.error("%s: %s",self.PRFX,st)
       if record.levelno == logging.FATAL:
