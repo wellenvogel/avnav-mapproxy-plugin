@@ -34,32 +34,39 @@ def nextV(v,zoom):
     if v > (1 << zoom):
         v=0
     return v
-def testRunner(base,zoom,y,x,num):
+def testRunner(base,zoom,y,x,num,crash):
     key=0
-    #if we comment out the next line all threads
-    #use the same SSL context - and it crashes
-    key=threading.get_native_id()
+    if not crash:
+        key=threading.get_native_id()
     while num > 0:
         num-=1
         openUrl(buildUrl(url,zoom,y,x),key=key)
         x=nextV(x,zoom)
         if num > 0:
             time.sleep(0.05)
-if len(sys.argv) < 4:
-    print("usage: %s base zoom numreq [numthr]"%sys.argv[0])
+if len(sys.argv) < 3:
+    print("usage: %s [-c] base numreq [numthr] [zoom]"%sys.argv[0])
     sys.exit(1)
-url=sys.argv[1]
-zoom=int(sys.argv[2])
-numreq=int(sys.argv[3])
+crash=False
+start=1
+if sys.argv[1] == '-c':
+    crash=True
+    start=2
+url=sys.argv[start]
+numreq=int(sys.argv[start+1])
 numthr=1
-if len(sys.argv) > 4:
-    numthr=int(sys.argv[4])
+zoom=12
+if len(sys.argv) > start+3:
+    zoom=int(sys.argv[start+3])
+
+if len(sys.argv) > start+2:
+    numthr=int(sys.argv[start+2])
 allthreads=[]
 for thr in range(0,numthr):
     x=random.randrange(0,(1 << zoom)-1)
     y=random.randrange(0,(1 << zoom)-1)
     print("start thread %d x=%d,y=%d"%(thr,x,y))
-    thread=threading.Thread(target=testRunner,args=[url,zoom,y,x,numreq],daemon=True)
+    thread=threading.Thread(target=testRunner,args=[url,zoom,y,x,numreq,crash],daemon=True)
     allthreads.append(thread)
     thread.start()
 for t in allthreads:
