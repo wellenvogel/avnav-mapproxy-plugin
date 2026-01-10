@@ -1,0 +1,25 @@
+layers:
+  swe:
+    title: Sweden
+    sources: [c_swe]
+caches:
+  c_swe:
+    grids: [webmercator]
+    #potentially add more sources
+    sources: [s_swe]
+    meta_size: [1,1]
+    cache:
+      type: mbtiles
+      filename: swe.mbtiles
+sources:
+  s_swe:
+    type: wms
+    req: 
+      url: https://geokatalog.sjofartsverket.se/mapservice/wms.axd/FyrenBakgrund/Permissive
+      layers: OgcWmsLayer0
+      transparent: true
+      format: image/png
+    wms_opts:
+      version: 1.1.1
+    supported_srs:
+      - EPSG:3006
