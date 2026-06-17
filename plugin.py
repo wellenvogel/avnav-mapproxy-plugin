@@ -455,7 +455,16 @@ class Plugin:
       testPath=self._getConfigValue('guiPath')
       if testPath is not None:
         guiPath=testPath
-      self.api.registerUserApp(self.api.getBaseUrl() + "/"+guiPath, "logo.png")
+      hasRegistered=False
+      if hasattr(self.api,'getAvNavVersion') and self.api.getAvNavVersion() >= 20260617:
+        try:
+          self.api.registerUserApp(self.api.getBaseUrl() + "/"+guiPath, "logo.png",
+                                   name="ui",page="chartspage",shortText='Mapprox',longText='Mapproxy')
+          hasRegistered=True
+        except:
+          pass
+      if not hasRegistered:
+        self.api.registerUserApp(self.api.getBaseUrl() + "/"+guiPath, "logo.png")
       self.api.registerChartProvider(self.listCharts)
       self.queryPeriod=int(self._getConfigValue('chartQueryPeriod'))
       self.networkMode=self._getConfigValue('networkMode')

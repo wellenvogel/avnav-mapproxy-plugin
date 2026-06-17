@@ -34,6 +34,8 @@ contents:
   dst: /usr/lib/avnav/plugins/mapproxy/plugin.css
 - src: ./*.png
   dst: /usr/lib/avnav/plugins/mapproxy/
+- src: ./*.svg
+  dst: /usr/lib/avnav/plugins/mapproxy/  
 - src: ./gui/build/release/*
   dst: /usr/lib/avnav/plugins/mapproxy/gui
 #- src: ./gui/icons/*

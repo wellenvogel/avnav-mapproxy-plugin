@@ -61,3 +61,23 @@
 .mpButtons button.selected{
     background-color: #a7aaaf;
 }
+
+:root{
+    --plugin-mapproxy-icon: url('icon.svg')
+}
+.nightMode{
+    --plugin-mapproxy-icon: url('icon-bw.svg')
+}
+.icon-default{
+    --plugin-mapproxy-icon: url('icon-bw.svg')
+}
+/*
+set the icon url for the plugin running as user plugin
+and as system plugin
+*/
+.button.user-mapproxy-ui .icon {
+    background-image: var(--plugin-mapproxy-icon);
+}
+.button.system-mapproxy-ui .icon {
+    background-image: var(--plugin-mapproxy-icon);
+}
