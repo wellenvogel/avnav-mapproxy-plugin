@@ -309,14 +309,27 @@ class SeedRunner(object):
         return fh
 
 
+SEED='mapproxy-seed'
 
 class SeedMain(object):
   def __init__(self):
     self.status=-1
     self.runner=None
   def start(self):
-    from pkg_resources import load_entry_point
-    self.status = load_entry_point('MapProxy', 'console_scripts', 'mapproxy-seed')()
+    if sys.version_info >= (3,10):
+      from importlib import metadata as importlib_metadata
+      entry_points=importlib_metadata.entry_points(group='console_scripts',name=SEED)
+      if len(entry_points) < 1:
+        raise Exception(f"{SEED} not found - 1")
+      entry_point=entry_points[SEED]
+      if entry_point is None:
+        raise Exception(f"{SEED} not found - 2")
+      print(f"entry {SEED} found, loading...")
+      epf=entry_point.load()
+      self.status=epf()
+    else:  
+      from pkg_resources import load_entry_point
+      self.status = load_entry_point('MapProxy', 'console_scripts', 'mapproxy-seed')()
     return self.status
   def startThread(self):
     self.runner = threading.Thread(target=self.start)
