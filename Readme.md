@@ -250,6 +250,10 @@ the proxy will not start.
 
 Changes
 -------
+__20250808__
+* update sources
+* merge [PR #16](https://github.com/wellenvogel/avnav-mapproxy-plugin/pull/16)
+
 __20240817__
 * merge PR #13
 * have openseamap as overlay and as combined layer with OSM

@@ -1,0 +1,23 @@
+layers:
+  ee-s57:
+    title: ee-s57
+    sources: [c_ee-s57]
+caches:
+  c_ee-s57:
+    grids: [webmercator]
+    sources: [s_ee-s57]
+    meta_size: [1,1]
+    cache:
+      type: mbtiles
+      filename: ee-s57.mbtiles
+sources:
+  s_ee-s57:
+    type: wms
+    req:
+      url: https://gis.vta.ee/primar/wms_ip/peeter.valing
+      layers: cells
+      style: style-id-245
+    wms_opts:
+      version: 1.1.1
+    supported_formats: ['image/png']
+    supported_srs: ['EPSG:3857']
