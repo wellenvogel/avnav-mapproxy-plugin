@@ -250,7 +250,7 @@ the proxy will not start.
 
 Changes
 -------
-__20260701__
+__20260702__
 * correct [Bug #18](https://github.com/wellenvogel/avnav-mapproxy-plugin/issues/18) - support python > 3.12
 * prepare for new upcoming AvNav API
 
